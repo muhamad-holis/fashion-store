@@ -140,7 +140,7 @@ create policy "read own shipping logs" on shipping_logs for select
       and (o.user_id = auth.uid() or is_admin())
     )
   );
-create policy "admin write shipping logs" on shipping_logs for insert using (is_admin());
+create policy "admin write shipping logs" on shipping_logs for insert with check (is_admin());
 
 -- ---------- REVIEWS ----------
 create policy "user create review" on reviews for insert
