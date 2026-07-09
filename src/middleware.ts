@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
@@ -37,7 +38,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    const { data: adminRecord } = await supabase
+    // Pakai service role (bypass RLS) supaya pengecekan role admin selalu
+    // akurat, tidak tergantung policy RLS di tabel admins.
+    const db = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } }
+    );
+
+    const { data: adminRecord } = await db
       .from("admins")
       .select("id, role")
       .eq("id", user.id)

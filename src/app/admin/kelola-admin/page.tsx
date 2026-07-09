@@ -3,11 +3,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ShieldAlert, Trash2, UserPlus } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import type { Admin } from "@/types/database";
 
 export default function KelolaAdminPage() {
-  const supabase = createClient();
   const [me, setMe] = useState<{ id: string; role: string } | null>(null);
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,25 +19,23 @@ export default function KelolaAdminPage() {
 
   async function load() {
     setLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const meRes = await fetch("/api/admin/me");
+      const meJson = await meRes.json();
+      const role = meJson.role as string | null;
 
-    if (user) {
-      const { data: myRow } = await supabase
-        .from("admins")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-      setMe(myRow ? { id: user.id, role: myRow.role } : null);
+      const listRes = await fetch("/api/admin/admins");
+      if (listRes.ok) {
+        const listJson = await listRes.json();
+        setAdmins(listJson.admins ?? []);
+        if (listJson.myId && role) setMe({ id: listJson.myId, role });
+      } else if (role) {
+        // Bukan super admin - tidak boleh list semua admin, cukup tahu role sendiri
+        setMe(meJson.isAdmin ? { id: "", role } : null);
+      }
+    } finally {
+      setLoading(false);
     }
-
-    const { data } = await supabase
-      .from("admins")
-      .select("*")
-      .order("created_at", { ascending: true });
-    setAdmins(data ?? []);
-    setLoading(false);
   }
 
   useEffect(() => {

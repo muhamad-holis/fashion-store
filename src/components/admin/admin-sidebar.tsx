@@ -69,16 +69,13 @@ export function AdminSidebar() {
 
   useEffect(() => {
     (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("admins")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-      setIsSuperAdmin(data?.role === "super_admin");
+      try {
+        const res = await fetch("/api/admin/me");
+        const { role } = await res.json();
+        setIsSuperAdmin(role === "super_admin");
+      } catch {
+        setIsSuperAdmin(false);
+      }
     })();
   }, []);
 

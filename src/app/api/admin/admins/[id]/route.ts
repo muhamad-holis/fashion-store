@@ -9,7 +9,9 @@ async function requireSuperAdmin() {
 
   if (!user) return { error: "Belum login", status: 401 as const };
 
-  const { data: caller } = await supabase
+  // Pakai service role supaya pengecekan role tidak tergantung RLS.
+  const db = createServiceRoleClient();
+  const { data: caller } = await db
     .from("admins")
     .select("role")
     .eq("id", user.id)

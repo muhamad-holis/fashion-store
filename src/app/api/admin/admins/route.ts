@@ -9,7 +9,9 @@ async function requireSuperAdmin() {
 
   if (!user) return { error: "Belum login", status: 401 as const };
 
-  const { data: caller } = await supabase
+  // Pakai service role supaya pengecekan role tidak tergantung RLS.
+  const db = createServiceRoleClient();
+  const { data: caller } = await db
     .from("admins")
     .select("role")
     .eq("id", user.id)
@@ -20,6 +22,23 @@ async function requireSuperAdmin() {
   }
 
   return { user };
+}
+
+export async function GET() {
+  const check = await requireSuperAdmin();
+  if ("error" in check) {
+    return NextResponse.json({ error: check.error }, { status: check.status });
+  }
+
+  const db = createServiceRoleClient();
+  const { data, error } = await db
+    .from("admins")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  return NextResponse.json({ admins: data, myId: check.user.id });
 }
 
 export async function POST(request: NextRequest) {

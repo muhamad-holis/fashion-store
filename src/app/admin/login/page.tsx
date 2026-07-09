@@ -17,16 +17,13 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
-      const { data: admin } = await supabase
-        .from("admins")
-        .select("id")
-        .eq("id", data.user.id)
-        .maybeSingle();
+      const res = await fetch("/api/admin/me");
+      const { isAdmin } = await res.json();
 
-      if (!admin) {
+      if (!isAdmin) {
         await supabase.auth.signOut();
         throw new Error("Akun ini tidak memiliki akses admin");
       }
