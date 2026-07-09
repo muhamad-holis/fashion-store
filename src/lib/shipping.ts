@@ -34,7 +34,7 @@ const COURIERS = [
   { code: "pos", name: "Pos Indonesia" },
   { code: "tiki", name: "TIKI" },
   { code: "lion", name: "Lion Parcel" },
-  { code: "idexpress", name: "ID Express" },
+  { code: "ide", name: "ID Express" }, // FIX: kode resmi "ide", bukan "idexpress"
   { code: "sap", name: "SAP Express" },
 ];
 
@@ -86,6 +86,8 @@ export async function getShippingOptions({
  * - "origin" WAJIB dikirim (ID kota/kecamatan asal toko).
  * - Semua kurir digabung jadi SATU request (dipisah titik dua) supaya hemat
  *   kuota harian, bukan 1 request per kurir.
+ * - Kode kurir HARUS persis sesuai daftar resmi Komerce (mis. "ide" bukan
+ *   "idexpress"). Satu kode salah akan bikin SELURUH request ditolak (422).
  */
 async function getShippingOptionsFromRajaOngkir({
   destinationCity,
@@ -125,7 +127,8 @@ async function getShippingOptionsFromRajaOngkir({
     });
 
     if (!res.ok) {
-      console.error(`RajaOngkir API error: HTTP ${res.status}`);
+      const errorBody = await res.text().catch(() => "");
+      console.error(`RajaOngkir API error: HTTP ${res.status} - ${errorBody}`);
       return getManualShippingEstimate({ destinationCity, totalWeightGrams });
     }
 
@@ -207,7 +210,7 @@ function getManualShippingEstimate({
     pos: { base: 7000, perKg: 6500, eta: "3-6 hari" },
     tiki: { base: 9000, perKg: 8200, eta: "2-4 hari" },
     lion: { base: 7500, perKg: 7000, eta: "3-5 hari" },
-    idexpress: { base: 7500, perKg: 7000, eta: "2-4 hari" },
+    ide: { base: 7500, perKg: 7000, eta: "2-4 hari" },
     sap: { base: 7500, perKg: 7200, eta: "3-5 hari" },
   };
 
@@ -232,6 +235,6 @@ function getZoneMultiplier(city: string): number {
   const cityLower = city.toLowerCase();
 
   if (jabodetabek.some((c) => cityLower.includes(c))) return 1;
-  if (javaMajor.some((c) => cityLower.includes(c))) return 1.3;
+  if (javaMajor.some((c) => cityLower.includes(c))) return 1.8;
   return 1.8; // luar Jawa
 }
