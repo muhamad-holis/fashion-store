@@ -12,8 +12,14 @@ import type { Product, ProductVariant } from "@/types/database";
 export function ProductActions({ product }: { product: Product }) {
   const router = useRouter();
   const variants = product.product_variants ?? [];
-  const uniqueColors = useMemo(() => dedupe(variants.map((v) => v.colors).filter(Boolean)), [variants]);
-  const uniqueSizes = useMemo(() => dedupe(variants.map((v) => v.sizes).filter(Boolean)), [variants]);
+  const uniqueColors = useMemo(
+    () => dedupe(variants.map((v) => v.colors).filter((c): c is NonNullable<typeof c> => Boolean(c))),
+    [variants]
+  );
+  const uniqueSizes = useMemo(
+    () => dedupe(variants.map((v) => v.sizes).filter((s): s is NonNullable<typeof s> => Boolean(s))),
+    [variants]
+  );
 
   const [colorId, setColorId] = useState<string | undefined>(uniqueColors[0]?.id);
   const [sizeId, setSizeId] = useState<string | undefined>(uniqueSizes[0]?.id);

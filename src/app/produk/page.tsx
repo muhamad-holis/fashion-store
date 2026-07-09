@@ -16,6 +16,7 @@ interface SearchParams {
   ukuran?: string;
   rating?: string;
   filter?: string;
+  [key: string]: string | undefined;
 }
 
 async function getProducts(params: SearchParams) {

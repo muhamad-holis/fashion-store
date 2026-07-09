@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatRupiah, formatDate, ORDER_STATUS_LABEL } from "@/lib/utils";
+import type { OrderStatus } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS: OrderStatus[] = [
   "unpaid",
   "waiting_verification",
   "processing",
@@ -28,7 +29,7 @@ export default async function AdminOrderListPage({
     .select("id, order_number, guest_name, guest_phone, grand_total, status, created_at")
     .order("created_at", { ascending: false });
 
-  if (status) query = query.eq("status", status);
+  if (status) query = query.eq("status", status as OrderStatus);
 
   const { data: orders } = await query.limit(100);
 

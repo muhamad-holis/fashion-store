@@ -18,30 +18,43 @@ async function getIdentity(request: NextRequest) {
   return { userId: user?.id ?? null, sessionId };
 }
 
+// Helper terpusat untuk filter berdasarkan pemilik cart (user_id ATAU
+// session_id, tidak pernah dua-duanya null). Sebelumnya PATCH & DELETE
+// tidak memvalidasi identitas sama sekali (beda dengan GET & POST) -
+// akibatnya query .eq("session_id", null) bisa terkirim ke database
+// dan berpotensi salah target/tidak konsisten. Dipusatkan di sini agar
+// semua method punya perilaku keamanan yang sama.
+function requireIdentity(userId: string | null, sessionId: string | null) {
+  if (!userId && !sessionId) {
+    return null;
+  }
+  return userId ? { column: "user_id" as const, value: userId } : { column: "session_id" as const, value: sessionId as string };
+}
+
 export async function GET(request: NextRequest) {
   const { userId, sessionId } = await getIdentity(request);
-  if (!userId && !sessionId) {
+  const identity = requireIdentity(userId, sessionId);
+  if (!identity) {
     return NextResponse.json({ items: [] });
   }
 
   const db = createServiceRoleClient();
-  let query = db
+  const { data, error } = await db
     .from("cart_items")
     .select(
       "*, products(id, name, slug, price, compare_at_price, stock, weight_grams, product_images(url, is_primary)), product_variants(id, stock, price_override, colors(name, hex_code), sizes(label))"
     )
+    .eq(identity.column, identity.value)
     .order("created_at", { ascending: false });
 
-  query = userId ? query.eq("user_id", userId) : query.eq("session_id", sessionId);
-
-  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ items: data });
 }
 
 export async function POST(request: NextRequest) {
   const { userId, sessionId } = await getIdentity(request);
-  if (!userId && !sessionId) {
+  const identity = requireIdentity(userId, sessionId);
+  if (!identity) {
     return NextResponse.json({ error: "Session tidak ditemukan" }, { status: 400 });
   }
 
@@ -55,14 +68,13 @@ export async function POST(request: NextRequest) {
   const db = createServiceRoleClient();
 
   // Cek apakah item dengan produk+variant yang sama sudah ada di cart -> tambah qty
-  let existingQuery = db
+  const { data: existing } = await db
     .from("cart_items")
     .select("id, quantity")
     .eq("product_id", product_id)
-    .eq("variant_id", variant_id ?? null);
-  existingQuery = userId ? existingQuery.eq("user_id", userId) : existingQuery.eq("session_id", sessionId);
-
-  const { data: existing } = await existingQuery.maybeSingle();
+    .eq("variant_id", variant_id ?? null)
+    .eq(identity.column, identity.value)
+    .maybeSingle();
 
   if (existing) {
     const { data, error } = await db
@@ -94,30 +106,46 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const { userId, sessionId } = await getIdentity(request);
+  const identity = requireIdentity(userId, sessionId);
+  if (!identity) {
+    return NextResponse.json({ error: "Session tidak ditemukan" }, { status: 400 });
+  }
+
   const body = await request.json();
   const { id, quantity, note } = body;
 
   if (!id) return NextResponse.json({ error: "id wajib diisi" }, { status: 400 });
 
   const db = createServiceRoleClient();
-  let query = db.from("cart_items").update({ quantity, note }).eq("id", id);
-  query = userId ? query.eq("user_id", userId) : query.eq("session_id", sessionId);
+  const { data, error } = await db
+    .from("cart_items")
+    .update({ quantity, note })
+    .eq("id", id)
+    .eq(identity.column, identity.value)
+    .select()
+    .maybeSingle();
 
-  const { data, error } = await query.select().maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ item: data });
 }
 
 export async function DELETE(request: NextRequest) {
   const { userId, sessionId } = await getIdentity(request);
+  const identity = requireIdentity(userId, sessionId);
+  if (!identity) {
+    return NextResponse.json({ error: "Session tidak ditemukan" }, { status: 400 });
+  }
+
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id wajib diisi" }, { status: 400 });
 
   const db = createServiceRoleClient();
-  let query = db.from("cart_items").delete().eq("id", id);
-  query = userId ? query.eq("user_id", userId) : query.eq("session_id", sessionId);
+  const { error } = await db
+    .from("cart_items")
+    .delete()
+    .eq("id", id)
+    .eq(identity.column, identity.value);
 
-  const { error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

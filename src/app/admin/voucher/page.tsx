@@ -13,7 +13,7 @@ interface Coupon {
   description: string | null;
   discount_type: "percent" | "fixed";
   discount_value: number;
-  min_purchase: number;
+  min_purchase: number | null;
   max_discount: number | null;
   usage_limit: number | null;
   used_count: number;
@@ -167,7 +167,7 @@ export default function AdminVoucherPage() {
                 <td className="p-3">
                   {c.discount_type === "percent" ? `${c.discount_value}%` : formatRupiah(c.discount_value)}
                 </td>
-                <td className="p-3">{formatRupiah(c.min_purchase)}</td>
+                <td className="p-3">{formatRupiah(c.min_purchase ?? 0)}</td>
                 <td className="p-3">
                   {c.used_count}
                   {c.usage_limit ? ` / ${c.usage_limit}` : ""}

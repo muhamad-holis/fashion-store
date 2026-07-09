@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatRupiah } from "@/lib/utils";
@@ -37,6 +37,18 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("qris");
   const [paymentChannel, setPaymentChannel] = useState("");
   const [note, setNote] = useState("");
+
+  // Kunci idempotency dibuat SEKALI per kunjungan halaman checkout dan
+  // tetap sama walau tombol diklik beberapa kali atau request di-retry
+  // (mis. koneksi lambat). Server akan mengenali kunci yang sama dan
+  // mengembalikan order yang sudah dibuat, bukan membuat order baru -
+  // ini mencegah pesanan ganda (double order) dari 1x checkout.
+  const idempotencyKeyRef = useRef<string>(
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`
+  );
+  // Guard tambahan terhadap klik ganda yang terjadi sebelum React sempat
+  // me-render ulang tombol menjadi disabled (state React bersifat async).
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -99,6 +111,10 @@ export default function CheckoutPage() {
   }, [settings, paymentMethod]);
 
   async function submitOrder() {
+    // Cegah klik ganda: kalau request sebelumnya masih berjalan, abaikan
+    // klik berikutnya sepenuhnya (tidak menunggu re-render state React).
+    if (isSubmittingRef.current) return;
+
     if (!form.recipient_name || !form.phone || !form.province || !form.city || !form.full_address) {
       toast.error("Lengkapi data alamat pengiriman");
       return;
@@ -112,11 +128,13 @@ export default function CheckoutPage() {
       return;
     }
 
+    isSubmittingRef.current = true;
     setSubmitting(true);
     try {
       const { order, payment } = await apiFetch("/api/orders", {
         method: "POST",
         body: JSON.stringify({
+          idempotency_key: idempotencyKeyRef.current,
           cart_item_ids: items.map((i) => i.id),
           address: form,
           guest_email: form.email || undefined,
@@ -133,6 +151,9 @@ export default function CheckoutPage() {
       router.push(`/invoice/${order.order_number}?phone=${encodeURIComponent(form.phone)}`);
     } catch (e: any) {
       toast.error(e.message);
+      // Hanya buka guard lagi kalau gagal, supaya user bisa coba ulang.
+      // Idempotency key TETAP sama sehingga retry ini aman (tidak dobel).
+      isSubmittingRef.current = false;
     } finally {
       setSubmitting(false);
     }

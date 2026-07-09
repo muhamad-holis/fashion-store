@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatRupiah, formatDate, ORDER_STATUS_LABEL } from "@/lib/utils";
+import type { OrderStatus } from "@/types/database";
 
-const STATUS_FLOW = [
+const STATUS_FLOW: OrderStatus[] = [
   "unpaid",
   "waiting_verification",
   "processing",
@@ -25,7 +26,7 @@ export default function AdminOrderDetailPage() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<OrderStatus | "">("");
   const [tracking, setTracking] = useState("");
 
   async function load() {
@@ -45,6 +46,10 @@ export default function AdminOrderDetailPage() {
   }, [params.id]);
 
   async function handleSave() {
+    if (!status) {
+      toast.error("Status tidak valid");
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from("orders")
@@ -143,7 +148,7 @@ export default function AdminOrderDetailPage() {
         <div className="grid gap-3 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs text-muted-foreground">Status</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} className="input">
+            <select value={status} onChange={(e) => setStatus(e.target.value as OrderStatus)} className="input">
               {STATUS_FLOW.map((s) => (
                 <option key={s} value={s}>
                   {ORDER_STATUS_LABEL[s]}

@@ -17,8 +17,10 @@ export type OrderStatus =
 export type PaymentMethod = "bank_transfer" | "ewallet" | "qris";
 export type PaymentStatus = "pending" | "approved" | "rejected";
 export type UserRole = "customer" | "admin" | "super_admin";
+export type NotificationChannel = "toast" | "email";
+export type DiscountType = "percent" | "fixed";
 
-export interface Product {
+export type Product = {
   id: string;
   sku: string;
   name: string;
@@ -40,6 +42,8 @@ export interface Product {
   rating_avg: number;
   review_count: number;
   sold_count: number;
+  meta_title: string | null;
+  meta_description: string | null;
   estimated_ship_days: string | null;
   created_at: string;
   updated_at: string;
@@ -48,9 +52,10 @@ export interface Product {
   product_videos?: ProductVideo[];
   product_variants?: ProductVariant[];
   categories?: Category;
+  reviews?: Review[];
 }
 
-export interface ProductImage {
+export type ProductImage = {
   id: string;
   product_id: string;
   url: string;
@@ -58,37 +63,39 @@ export interface ProductImage {
   is_primary: boolean;
 }
 
-export interface ProductVideo {
+export type ProductVideo = {
   id: string;
   product_id: string;
   url: string;
   thumbnail_url: string | null;
 }
 
-export interface Color {
+export type Color = {
   id: string;
   name: string;
   hex_code: string;
 }
 
-export interface Size {
+export type Size = {
   id: string;
   label: string;
   sort_order: number;
 }
 
-export interface ProductVariant {
+export type ProductVariant = {
   id: string;
   product_id: string;
   color_id: string | null;
   size_id: string | null;
+  sku_suffix: string | null;
   stock: number;
   price_override: number | null;
+  created_at: string;
   colors?: Color;
   sizes?: Size;
 }
 
-export interface Category {
+export type Category = {
   id: string;
   name: string;
   slug: string;
@@ -96,9 +103,10 @@ export interface Category {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
+  created_at: string;
 }
 
-export interface CartItem {
+export type CartItem = {
   id: string;
   session_id: string | null;
   user_id: string | null;
@@ -106,11 +114,21 @@ export interface CartItem {
   variant_id: string | null;
   quantity: number;
   note: string | null;
+  created_at: string;
   products?: Product;
   product_variants?: ProductVariant;
 }
 
-export interface Address {
+export type WishlistItem = {
+  id: string;
+  session_id: string | null;
+  user_id: string | null;
+  product_id: string;
+  created_at: string;
+  products?: Product;
+}
+
+export type Address = {
   id: string;
   user_id: string;
   recipient_name: string;
@@ -124,9 +142,18 @@ export interface Address {
   map_lat: number | null;
   map_lng: number | null;
   is_default: boolean;
+  created_at: string;
 }
 
-export interface Order {
+export type Courier = {
+  id: string;
+  code: string;
+  name: string;
+  logo_url: string | null;
+  is_active: boolean;
+}
+
+export type Order = {
   id: string;
   order_number: string;
   user_id: string | null;
@@ -146,13 +173,14 @@ export interface Order {
   buyer_note: string | null;
   status: OrderStatus;
   tracking_number: string | null;
+  idempotency_key: string | null;
   created_at: string;
   updated_at: string;
   order_items?: OrderItem[];
   payments?: Payment[];
 }
 
-export interface OrderItem {
+export type OrderItem = {
   id: string;
   order_id: string;
   product_id: string | null;
@@ -166,17 +194,117 @@ export interface OrderItem {
   line_total: number;
 }
 
-export interface Payment {
+export type Payment = {
   id: string;
   order_id: string;
   method: PaymentMethod;
   channel_detail: string | null;
   amount: number;
   status: PaymentStatus;
+  verified_by: string | null;
+  verified_at: string | null;
+  rejection_reason: string | null;
+  created_at: string;
+  payment_proofs?: PaymentProof[];
+  orders?: Order;
+}
+
+export type PaymentProof = {
+  id: string;
+  payment_id: string;
+  image_url: string;
+  uploaded_at: string;
+}
+
+export type ShippingLog = {
+  id: string;
+  order_id: string;
+  status: string;
+  description: string | null;
   created_at: string;
 }
 
-export interface StoreSettings {
+export type Review = {
+  id: string;
+  product_id: string;
+  order_item_id: string | null;
+  user_id: string | null;
+  reviewer_name: string;
+  rating: number;
+  comment: string | null;
+  images: string[];
+  is_visible: boolean;
+  created_at: string;
+  products?: Product;
+}
+
+export type Coupon = {
+  id: string;
+  code: string;
+  description: string | null;
+  discount_type: DiscountType;
+  discount_value: number;
+  min_purchase: number | null;
+  max_discount: number | null;
+  usage_limit: number | null;
+  used_count: number;
+  valid_from: string;
+  valid_until: string | null;
+  is_active: boolean;
+}
+
+export type Banner = {
+  id: string;
+  title: string | null;
+  image_url: string;
+  link_url: string | null;
+  placement: string;
+  sort_order: number;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+}
+
+export type Profile = {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  role: UserRole;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type Admin = {
+  id: string;
+  full_name: string;
+  role: UserRole;
+  created_at: string;
+}
+
+export type Notification = {
+  id: string;
+  user_id: string | null;
+  order_id: string | null;
+  channel: NotificationChannel;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export type ActivityLog = {
+  id: string;
+  actor_id: string | null;
+  actor_type: string;
+  action: string;
+  entity: string | null;
+  entity_id: string | null;
+  metadata: Record<string, any> | null;
+  created_at: string;
+}
+
+export type StoreSettings = {
   id: number;
   store_name: string;
   logo_url: string | null;
@@ -191,12 +319,95 @@ export interface StoreSettings {
   qris_image_url: string | null;
   bank_accounts: { bank: string; account_number: string; account_name: string }[];
   ewallet_accounts: { provider: string; number: string; name: string }[];
+  updated_at: string;
 }
 
-// Placeholder generic Database type supaya createBrowserClient/createServerClient
-// tetap type-safe tanpa perlu generate penuh dulu.
+// =========================================================
+// DATABASE TYPE (dipakai oleh createBrowserClient<Database> /
+// createServerClient<Database> supaya query .from()/.insert()/.update()
+// type-safe sesuai schema asli di supabase/migrations).
+//
+// PENTING: setiap tabel WAJIB didaftarkan secara eksplisit di sini
+// (bukan pakai `Record<string, ...>` generik). Kalau nama tabel tidak
+// terdaftar di sini, TypeScript diam-diam meng-infer tipe query jadi
+// `never`, sehingga semua .insert()/.update() ke tabel tersebut gagal
+// type-check dengan pesan seperti:
+//   "Object literal may only specify known properties, and 'x' does
+//    not exist in type 'never[]'"
+// (persis error yang menyebabkan build Vercel gagal sebelumnya).
+// Setiap kali menambah tabel baru di migration SQL, tambahkan juga
+// entrinya di sini.
+// =========================================================
+type TableDef<Row> = {
+  Row: Row;
+  Insert: Partial<Row>;
+  Update: Partial<Row>;
+  Relationships: any[];
+};
+
 export type Database = {
   public: {
-    Tables: Record<string, { Row: any; Insert: any; Update: any }>;
+    Tables: {
+      settings: TableDef<StoreSettings>;
+      profiles: TableDef<Profile>;
+      admins: TableDef<Admin>;
+      categories: TableDef<Category>;
+      products: TableDef<Product>;
+      colors: TableDef<Color>;
+      sizes: TableDef<Size>;
+      product_variants: TableDef<ProductVariant>;
+      product_images: TableDef<ProductImage>;
+      product_videos: TableDef<ProductVideo>;
+      cart_items: TableDef<CartItem>;
+      wishlist_items: TableDef<WishlistItem>;
+      addresses: TableDef<Address>;
+      couriers: TableDef<Courier>;
+      orders: TableDef<Order>;
+      order_items: TableDef<OrderItem>;
+      payments: TableDef<Payment>;
+      payment_proofs: TableDef<PaymentProof>;
+      shipping_logs: TableDef<ShippingLog>;
+      reviews: TableDef<Review>;
+      coupons: TableDef<Coupon>;
+      banners: TableDef<Banner>;
+      notifications: TableDef<Notification>;
+      activity_logs: TableDef<ActivityLog>;
+      order_number_counters: TableDef<{ day: string; seq: number }>;
+    };
+    Views: Record<string, never>;
+    Functions: {
+      generate_order_number: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+      next_order_number: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+      create_order_atomic: {
+        Args: {
+          [key: string]: unknown;
+          p_idempotency_key: string | null;
+          p_cart_item_ids: string[];
+          p_user_id: string | null;
+          p_session_id: string | null;
+          p_guest_name: string | null;
+          p_guest_phone: string | null;
+          p_guest_email: string | null;
+          p_shipping_address: Record<string, any>;
+          p_courier_code: string | null;
+          p_courier_service: string | null;
+          p_shipping_cost: number;
+          p_shipping_eta: string | null;
+          p_payment_method: string;
+          p_payment_channel_detail: string | null;
+          p_buyer_note: string | null;
+          p_coupon_code: string | null;
+        };
+        Returns: { order_id: string; payment_id: string; already_existed: boolean };
+      };
+    };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };
