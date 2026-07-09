@@ -79,12 +79,20 @@ npm install
    - `0002_row_level_security.sql`
    - `0003_storage_buckets.sql`
    - `0004_seed_data.sql`
-3. Buat akun admin pertama:
+   - `0005_atomic_checkout.sql`
+   - `0005_atomic_operations.sql`
+   - `0006_data_integrity_constraints.sql`
+   - `0007_admin_roles.sql`
+3. Buat akun admin pertama (super admin):
    - Buka **Authentication > Users**, tambah user baru (email + password)
-   - Jalankan SQL ini di SQL Editor (ganti `USER_ID` dengan id user yang baru dibuat):
+   - Jalankan SQL ini di SQL Editor (ganti `USER_ID` dan `EMAIL` sesuai user yang baru dibuat):
      ```sql
-     insert into admins (id, full_name, role) values ('USER_ID', 'Super Admin', 'super_admin');
+     insert into admins (id, full_name, email, role)
+     values ('USER_ID', 'Super Admin', 'EMAIL', 'super_admin');
      ```
+   - Setelah itu, admin lain bisa ditambahkan langsung dari panel
+     **Admin > Kelola Admin** (menu ini hanya muncul untuk super admin) —
+     tidak perlu lagi lewat SQL Editor.
 
 ### 3. Environment Variables
 

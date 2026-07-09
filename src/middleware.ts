@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
 
     const { data: adminRecord } = await supabase
       .from("admins")
-      .select("id")
+      .select("id, role")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -47,6 +47,13 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/admin/login";
       url.searchParams.set("error", "unauthorized");
+      return NextResponse.redirect(url);
+    }
+
+    // Halaman kelola admin hanya untuk super_admin
+    if (pathname.startsWith("/admin/kelola-admin") && adminRecord.role !== "super_admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin";
       return NextResponse.redirect(url);
     }
   }

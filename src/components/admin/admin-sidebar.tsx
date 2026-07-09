@@ -19,8 +19,9 @@ import {
   LogOut,
   Menu,
   X,
+  ShieldCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -54,11 +55,34 @@ const menuGroups = [
   },
 ];
 
+const superAdminGroup = {
+  title: "Super Admin",
+  items: [{ href: "/admin/kelola-admin", label: "Kelola Admin", icon: ShieldCheck }],
+};
+
 export function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const supabase = createClient();
+
+  useEffect(() => {
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("admins")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+      setIsSuperAdmin(data?.role === "super_admin");
+    })();
+  }, []);
+
+  const groups = isSuperAdmin ? [...menuGroups, superAdminGroup] : menuGroups;
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -71,7 +95,7 @@ export function AdminSidebar() {
         <p className="text-sm font-semibold">Admin Panel</p>
       </div>
       <nav className="flex-1 space-y-5 overflow-y-auto p-3">
-        {menuGroups.map((group, idx) => (
+        {groups.map((group, idx) => (
           <div key={idx}>
             {group.title && (
               <p className="mb-1.5 px-3 text-[11px] uppercase tracking-wide text-muted-foreground">

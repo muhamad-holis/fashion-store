@@ -278,6 +278,7 @@ export type Profile = {
 export type Admin = {
   id: string;
   full_name: string;
+  email: string | null;
   role: UserRole;
   created_at: string;
 }
