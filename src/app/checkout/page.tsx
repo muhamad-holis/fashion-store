@@ -340,9 +340,9 @@ export default function CheckoutPage() {
 
       {/* Bottom sheet pilihan pembayaran */}
       {paymentSheetOpen && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50" onClick={() => setPaymentSheetOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => setPaymentSheetOpen(false)}>
           <div
-            className="max-h-[75vh] w-full max-w-[480px] overflow-y-auto rounded-t-2xl bg-background p-4 pb-6"
+            className="max-h-[75vh] w-full max-w-[480px] overflow-y-auto rounded-t-2xl bg-background p-4 pb-10"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
