@@ -4,7 +4,6 @@ import { GuestCard } from "@/components/account/guest-card";
 import { OrderStatusGrid, type OrderStatusCounts } from "@/components/account/order-status-grid";
 import { TrackOrderCard } from "@/components/account/track-order-card";
 import { MenuList } from "@/components/account/menu-list";
-import { buildAccountMenu } from "@/components/account/menu-items";
 import { RecommendSection } from "@/components/account/recommend-section";
 import { Reveal } from "@/components/account/reveal";
 import type { OrderStatus, Product } from "@/types/database";
@@ -57,11 +56,7 @@ export default async function AccountPage() {
           <TrackOrderCard />
         </Reveal>
         <Reveal delay={0.15}>
-          <MenuList
-            items={buildAccountMenu({ whatsapp: settings?.whatsapp }).filter(
-              (i) => i.action !== "signout"
-            )}
-          />
+          <MenuList whatsapp={settings?.whatsapp} excludeSignout />
         </Reveal>
         <RecommendSection products={recommended} />
       </div>
@@ -97,9 +92,7 @@ export default async function AccountPage() {
       </Reveal>
 
       <Reveal delay={0.15}>
-        <MenuList
-          items={buildAccountMenu({ wishlistCount: wishlistCount ?? 0, whatsapp: settings?.whatsapp })}
-        />
+        <MenuList wishlistCount={wishlistCount ?? 0} whatsapp={settings?.whatsapp} />
       </Reveal>
 
       <RecommendSection products={recommended} />

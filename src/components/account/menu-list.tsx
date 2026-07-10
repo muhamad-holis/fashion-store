@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { BUILT_ROUTES, type MenuItem } from "@/components/account/menu-items";
+import { BUILT_ROUTES, buildAccountMenu, type MenuItem } from "@/components/account/menu-items";
 
 function MenuRow({ item, index }: { item: MenuItem; index: number }) {
   const router = useRouter();
@@ -76,10 +76,27 @@ function MenuRow({ item, index }: { item: MenuItem; index: number }) {
   );
 }
 
-export function MenuList({ items }: { items: MenuItem[] }) {
+// MenuList sengaja menerima data MENTAH (wishlistCount, whatsapp) - bukan
+// array item yang sudah jadi - lalu memanggil buildAccountMenu() di DALAM
+// komponen client ini sendiri. Ini wajib: komponen ikon Lucide di dalam
+// setiap item tidak boleh "melintasi" batas Server -> Client Component
+// lewat props (React akan melempar error saat serialisasi RSC kalau
+// props berisi referensi fungsi/komponen, bukan data biasa).
+export function MenuList({
+  wishlistCount,
+  whatsapp,
+  excludeSignout,
+}: {
+  wishlistCount?: number;
+  whatsapp?: string | null;
+  excludeSignout?: boolean;
+}) {
+  const items = buildAccountMenu({ wishlistCount, whatsapp });
+  const finalItems = excludeSignout ? items.filter((i) => i.action !== "signout") : items;
+
   return (
     <div className="premium-card divide-y divide-border overflow-hidden">
-      {items.map((item, i) => (
+      {finalItems.map((item, i) => (
         <MenuRow key={item.label} item={item} index={i} />
       ))}
     </div>
