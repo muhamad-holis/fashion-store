@@ -22,12 +22,15 @@ export default function InvoicePage() {
   async function loadOrder() {
     try {
       const [{ order }, { settings }] = await Promise.all([
-        apiFetch(`/api/orders/track?order_number=${params.orderNumber}&phone=${phone}`),
+        phone
+          ? apiFetch(`/api/orders/track?order_number=${params.orderNumber}&phone=${phone}`)
+          : apiFetch(`/api/orders/mine/${params.orderNumber}`),
         apiFetch("/api/settings"),
       ]);
       setOrder(order);
       setSettings(settings);
     } catch (e: any) {
+      setOrder(null);
       toast.error(e.message);
     } finally {
       setLoading(false);
@@ -35,8 +38,7 @@ export default function InvoicePage() {
   }
 
   useEffect(() => {
-    if (phone) loadOrder();
-    else setLoading(false);
+    loadOrder();
   }, [phone]);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -66,15 +68,6 @@ export default function InvoicePage() {
     toast.success("Disalin");
   }
 
-  if (!phone) {
-    return (
-      <div className="container py-16 text-center text-sm text-muted-foreground">
-        Buka halaman ini dari link invoice yang dikirim setelah checkout, atau lacak pesanan
-        lewat menu Lacak Pesanan.
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div className="container space-y-3 py-8">
@@ -88,7 +81,9 @@ export default function InvoicePage() {
   if (!order) {
     return (
       <div className="container py-16 text-center text-sm text-muted-foreground">
-        Pesanan tidak ditemukan.
+        {phone
+          ? "Pesanan tidak ditemukan."
+          : "Pesanan tidak ditemukan, atau silakan login untuk melihat pesanan ini."}
       </div>
     );
   }
