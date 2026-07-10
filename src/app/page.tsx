@@ -3,6 +3,8 @@ import Image from "next/image";
 import { ChevronRight, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ProductCard } from "@/components/product/product-card";
+import { FlashSaleCountdown } from "@/components/product/flash-sale-countdown";
+import { TrustBadges } from "@/components/home/trust-badges";
 import type { Product, Category } from "@/types/database";
 
 export const revalidate = 60;
@@ -51,6 +53,15 @@ async function getHomeData() {
 export default async function HomePage() {
   const { banners, categories, flashSale, newest, bestSeller } = await getHomeData();
 
+  // Ambil waktu berakhir flash sale yang PALING DEKAT dari produk-produk
+  // yang sedang tayang, buat ditampilkan sebagai countdown asli (bukan
+  // angka statis) di header section Flash Sale.
+  const flashSaleEndTimes = flashSale
+    .map((p) => p.flash_sale_end)
+    .filter((t): t is string => !!t)
+    .sort();
+  const nearestFlashSaleEnd = flashSaleEndTimes[0];
+
   return (
     <div className="space-y-8 pt-4">
       {/* HERO BANNER */}
@@ -97,6 +108,9 @@ export default async function HomePage() {
         </section>
       )}
 
+      {/* TRUST BADGES */}
+      <TrustBadges />
+
       {/* FLASH SALE */}
       {flashSale.length > 0 && (
         <SectionRow
@@ -104,6 +118,7 @@ export default async function HomePage() {
           icon={<Zap className="h-4 w-4 fill-current text-foreground" />}
           href="/produk?filter=flash-sale"
           products={flashSale}
+          countdownEndsAt={nearestFlashSaleEnd}
         />
       )}
 
@@ -121,22 +136,27 @@ function SectionRow({
   icon,
   href,
   products,
+  countdownEndsAt,
 }: {
   title: string;
   icon?: React.ReactNode;
   href: string;
   products: Product[];
+  countdownEndsAt?: string;
 }) {
   if (products.length === 0) return null;
 
   return (
     <section className="container">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="flex items-center gap-1.5 text-base font-semibold">
-          {icon}
-          {title}
-        </h2>
-        <Link href={href} className="flex items-center text-xs text-muted-foreground">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <h2 className="flex shrink-0 items-center gap-1.5 text-base font-semibold">
+            {icon}
+            {title}
+          </h2>
+          {countdownEndsAt && <FlashSaleCountdown endTime={countdownEndsAt} />}
+        </div>
+        <Link href={href} className="flex shrink-0 items-center text-xs text-muted-foreground">
           Lihat Semua <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </div>
