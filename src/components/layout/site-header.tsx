@@ -13,6 +13,12 @@ export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string
 
   if (pathname.startsWith("/admin") || pathname.startsWith("/pembayaran")) return null;
 
+  // Halaman Akun fokus ke profil/pesanan/pengaturan, bukan pencarian produk -
+  // marketplace besar (Shopee, TikTok Shop, dll) juga tidak menampilkan search
+  // bar di tab akun. Header (logo + ikon) tetap tampil, cuma search bar-nya saja
+  // yang disembunyikan.
+  const hideSearch = pathname.startsWith("/akun");
+
   return (
     <header className="sticky top-0 z-40 glass">
       <div className="container flex h-16 items-center gap-3">
@@ -20,22 +26,24 @@ export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string
           {storeName}
         </Link>
 
-        <form
-          action="/produk"
-          className="relative hidden flex-1 md:block"
-          onSubmit={(e) => {
-            if (!query.trim()) e.preventDefault();
-          }}
-        >
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            name="q"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari produk, kategori, atau brand..."
-            className="w-full rounded-full border border-border bg-secondary/60 py-2.5 pl-10 pr-4 text-sm outline-none ring-ring transition focus:ring-2"
-          />
-        </form>
+        {!hideSearch && (
+          <form
+            action="/produk"
+            className="relative hidden flex-1 md:block"
+            onSubmit={(e) => {
+              if (!query.trim()) e.preventDefault();
+            }}
+          >
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              name="q"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cari produk, kategori, atau brand..."
+              className="w-full rounded-full border border-border bg-secondary/60 py-2.5 pl-10 pr-4 text-sm outline-none ring-ring transition focus:ring-2"
+            />
+          </form>
+        )}
 
         <div className="ml-auto flex items-center gap-1 md:ml-0">
           <Link
@@ -55,16 +63,18 @@ export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string
       </div>
 
       {/* Search bar khusus mobile di bawah baris atas */}
-      <div className="container pb-3 md:hidden">
-        <form action="/produk" className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            name="q"
-            placeholder="Cari produk..."
-            className="w-full rounded-full border border-border bg-secondary/60 py-2.5 pl-10 pr-4 text-sm outline-none ring-ring transition focus:ring-2"
-          />
-        </form>
-      </div>
+      {!hideSearch && (
+        <div className="container pb-3 md:hidden">
+          <form action="/produk" className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              name="q"
+              placeholder="Cari produk..."
+              className="w-full rounded-full border border-border bg-secondary/60 py-2.5 pl-10 pr-4 text-sm outline-none ring-ring transition focus:ring-2"
+            />
+          </form>
+        </div>
+      )}
     </header>
   );
 }
