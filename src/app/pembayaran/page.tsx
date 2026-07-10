@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -33,7 +33,24 @@ function SectionSkeleton() {
   );
 }
 
+// useSearchParams() mewajibkan boundary <Suspense> di sekelilingnya supaya
+// Next.js tidak gagal saat prerender halaman statis ini (build error:
+// "useSearchParams() should be wrapped in a suspense boundary").
 export default function MetodePembayaranPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-dvh bg-[#0B0B0B] px-4 py-6 text-white">
+          <SectionSkeleton />
+        </div>
+      }
+    >
+      <MetodePembayaranContent />
+    </Suspense>
+  );
+}
+
+function MetodePembayaranContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get("order");
