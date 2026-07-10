@@ -318,8 +318,20 @@ export type StoreSettings = {
   email: string | null;
   operational_hours: string | null;
   qris_image_url: string | null;
-  bank_accounts: { bank: string; account_number: string; account_name: string }[];
-  ewallet_accounts: { provider: string; number: string; name: string }[];
+  bank_accounts: {
+    bank: string;
+    account_number: string;
+    account_name: string;
+    logo_url?: string;
+    is_active?: boolean;
+  }[];
+  ewallet_accounts: {
+    provider: string;
+    number: string;
+    name: string;
+    logo_url?: string;
+    is_active?: boolean;
+  }[];
   updated_at: string;
 }
 

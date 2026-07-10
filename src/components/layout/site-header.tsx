@@ -11,7 +11,7 @@ export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string
   const [query, setQuery] = useState("");
   const pathname = usePathname();
 
-  if (pathname.startsWith("/admin")) return null;
+  if (pathname.startsWith("/admin") || pathname.startsWith("/pembayaran")) return null;
 
   return (
     <header className="sticky top-0 z-40 glass">

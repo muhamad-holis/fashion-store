@@ -43,6 +43,7 @@ const menuGroups = [
     items: [
       { href: "/admin/order", label: "Order", icon: ShoppingCart },
       { href: "/admin/pembayaran", label: "Pembayaran", icon: CreditCard },
+      { href: "/admin/pengaturan-pembayaran", label: "Metode Pembayaran", icon: QrCode },
     ],
   },
   {
