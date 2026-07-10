@@ -4,71 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import {
-  User,
-  MapPin,
-  CreditCard,
-  Ticket,
-  Heart,
-  History,
-  Eye,
-  Bell,
-  LifeBuoy,
-  MessageCircle,
-  ShieldCheck,
-  FileText,
-  Info,
-  Settings,
-  LogOut,
-  type LucideIcon,
-} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-
-export type MenuItem = {
-  label: string;
-  icon: LucideIcon;
-  href?: string;
-  badge?: string;
-  external?: boolean;
-  action?: "signout";
-};
-
-// href yang sudah punya halaman nyata di repo — sisanya akan menampilkan
-// toast "segera hadir" yang tetap terasa premium, tidak 404.
-const BUILT_ROUTES = new Set(["/akun/profil", "/akun/pesanan", "/wishlist", "/akun/pengaturan", "/pembayaran"]);
-
-export function buildAccountMenu({
-  wishlistCount,
-  whatsapp,
-}: {
-  wishlistCount?: number;
-  whatsapp?: string | null;
-}): MenuItem[] {
-  return [
-    { label: "Profil Saya", icon: User, href: "/akun/profil" },
-    { label: "Alamat Saya", icon: MapPin, href: "/akun/alamat" },
-    { label: "Metode Pembayaran", icon: CreditCard, href: "/pembayaran" },
-    { label: "Voucher Saya", icon: Ticket, href: "/akun/voucher" },
-    {
-      label: "Wishlist",
-      icon: Heart,
-      href: "/wishlist",
-      badge: wishlistCount ? `${wishlistCount} Produk` : undefined,
-    },
-    { label: "Riwayat Pembelian", icon: History, href: "/akun/pesanan" },
-    { label: "Produk Dilihat", icon: Eye, href: "/akun/dilihat" },
-    { label: "Notifikasi", icon: Bell, href: "/akun/notifikasi" },
-    { label: "Pusat Bantuan", icon: LifeBuoy, href: "/akun/bantuan" },
-    whatsapp
-      ? { label: "Hubungi Admin", icon: MessageCircle, href: `https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}`, external: true }
-      : { label: "Hubungi Admin", icon: MessageCircle, href: "/akun/bantuan" },
-    { label: "Kebijakan Privasi", icon: ShieldCheck, href: "/akun/privasi" },
-    { label: "Syarat & Ketentuan", icon: FileText, href: "/akun/syarat" },
-    { label: "Tentang Kami", icon: Info, href: "/akun/tentang" },
-    { label: "Pengaturan", icon: Settings, href: "/akun/pengaturan" },
-    { label: "Keluar", icon: LogOut, action: "signout" },
-  ];
-}
+import { BUILT_ROUTES, type MenuItem } from "@/components/account/menu-items";
 
 function MenuRow({ item, index }: { item: MenuItem; index: number }) {
   const router = useRouter();
