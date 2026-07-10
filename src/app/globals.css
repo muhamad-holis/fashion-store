@@ -34,11 +34,11 @@
      DARK MODE — tema bawaan/default (tidak diubah sama sekali).
      ============================================================ */
   .dark {
-    --background: 0 0% 5%;
+    --background: 0 0% 4.3%;
     --foreground: 0 0% 98%;
-    --card: 0 0% 8%;
+    --card: 0 0% 8.2%;
     --card-foreground: 0 0% 98%;
-    --popover: 0 0% 8%;
+    --popover: 0 0% 8.2%;
     --popover-foreground: 0 0% 98%;
     --primary: 0 0% 98%;
     --primary-foreground: 0 0% 5%;
@@ -50,8 +50,8 @@
     --accent-foreground: 0 0% 98%;
     --destructive: 0 63% 45%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 16%;
-    --input: 0 0% 16%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
     --ring: 0 0% 83%;
     --radius: 0.9rem;
   }
@@ -116,6 +116,31 @@
 
   .input {
     @apply w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-ring;
+  }
+
+  .premium-card {
+    @apply rounded-[24px] border border-border bg-card shadow-[0_8px_30px_-12px_rgba(0,0,0,0.5)];
+  }
+
+  .ripple {
+    position: relative;
+    overflow: hidden;
+  }
+  .ripple::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle, hsl(var(--foreground) / 0.25) 0%, transparent 60%);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+  }
+  .ripple:active::after {
+    opacity: 1;
+    transform: scale(1.4);
+    transition: 0s;
   }
 }
 

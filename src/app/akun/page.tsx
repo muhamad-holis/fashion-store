@@ -1,8 +1,34 @@
-import Link from "next/link";
-import { PackageSearch, LogIn, UserPlus, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { SignOutButton } from "@/components/account/sign-out-button";
-import { formatRupiah, formatDate, ORDER_STATUS_LABEL } from "@/lib/utils";
+import { ProfileCard } from "@/components/account/profile-card";
+import { GuestCard } from "@/components/account/guest-card";
+import { OrderStatusGrid, type OrderStatusCounts } from "@/components/account/order-status-grid";
+import { TrackOrderCard } from "@/components/account/track-order-card";
+import { MenuList, buildAccountMenu } from "@/components/account/menu-list";
+import { RecommendSection } from "@/components/account/recommend-section";
+import { Reveal } from "@/components/account/reveal";
+import type { OrderStatus, Product } from "@/types/database";
+
+export const metadata = { title: "Akun Saya" };
+
+function countByStatus(statuses: OrderStatus[]): OrderStatusCounts {
+  const bucket: OrderStatusCounts = {
+    unpaid: 0,
+    packed: 0,
+    shipped: 0,
+    arrived: 0,
+    completed: 0,
+    cancelled: 0,
+  };
+  for (const s of statuses) {
+    if (s === "unpaid" || s === "waiting_verification") bucket.unpaid++;
+    else if (s === "processing" || s === "packed") bucket.packed++;
+    else if (s === "shipped") bucket.shipped++;
+    else if (s === "arrived") bucket.arrived++;
+    else if (s === "completed") bucket.completed++;
+    else if (s === "cancelled") bucket.cancelled++;
+  }
+  return bucket;
+}
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -10,93 +36,72 @@ export default async function AccountPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const orders = user
-    ? (
-        await supabase
-          .from("orders")
-          .select("order_number, status, grand_total, created_at")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(10)
-      ).data ?? []
-    : [];
+  const [{ data: settings }, recommendedRes] = await Promise.all([
+    supabase.from("settings").select("whatsapp, store_name").eq("id", 1).maybeSingle(),
+    supabase
+      .from("products")
+      .select("*, product_images(*)")
+      .eq("is_active", true)
+      .order("sold_count", { ascending: false })
+      .limit(6),
+  ]);
+  const recommended = (recommendedRes.data ?? []) as Product[];
+
+  if (!user) {
+    return (
+      <div className="container max-w-md space-y-4 py-6">
+        <h1 className="px-1 text-xl font-bold tracking-tight">Akun Saya</h1>
+        <GuestCard />
+        <Reveal delay={0.1}>
+          <TrackOrderCard />
+        </Reveal>
+        <Reveal delay={0.15}>
+          <MenuList
+            items={buildAccountMenu({ whatsapp: settings?.whatsapp }).filter(
+              (i) => i.action !== "signout"
+            )}
+          />
+        </Reveal>
+        <RecommendSection products={recommended} />
+      </div>
+    );
+  }
+
+  const [{ data: profile }, { data: orders }, { count: wishlistCount }] = await Promise.all([
+    supabase.from("profiles").select("full_name, phone, avatar_url").eq("id", user.id).maybeSingle(),
+    supabase.from("orders").select("status").eq("user_id", user.id),
+    supabase
+      .from("wishlist_items")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
+  ]);
+
+  const counts = countByStatus((orders ?? []).map((o) => o.status as OrderStatus));
+  const displayName = profile?.full_name || user.email?.split("@")[0] || "Pengguna";
 
   return (
-    <div className="container max-w-md space-y-3 py-6">
-      <h1 className="mb-1 text-lg font-semibold">Akun</h1>
-      <p className="mb-4 text-sm text-muted-foreground">
-        Belanja di sini tidak wajib punya akun — kamu bisa checkout langsung sebagai tamu.
-        Login bersifat opsional, kalau ingin riwayat order tersimpan otomatis.
-      </p>
+    <div className="container max-w-md space-y-4 py-6">
+      <h1 className="px-1 text-xl font-bold tracking-tight">Akun Saya</h1>
 
-      {user ? (
-        <>
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-4">
-            <p className="text-sm">
-              Masuk sebagai <strong>{user.email}</strong>
-            </p>
-            <SignOutButton />
-          </div>
+      <ProfileCard
+        name={displayName}
+        subtitle={profile?.phone || user.email || undefined}
+        avatarUrl={profile?.avatar_url}
+      />
 
-          <div className="pt-2">
-            <h2 className="mb-2 text-sm font-semibold">Riwayat Pesanan</h2>
-            {orders.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                Belum ada pesanan yang tersimpan di akun ini.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {orders.map((o) => (
-                  <Link
-                    key={o.order_number}
-                    href={`/invoice/${o.order_number}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border p-3.5 text-sm transition hover:bg-secondary"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{o.order_number}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(o.created_at)} · {ORDER_STATUS_LABEL[o.status] ?? o.status}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <span className="text-sm font-semibold">{formatRupiah(o.grand_total)}</span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            href="/akun/login"
-            className="flex flex-col items-center gap-2 rounded-xl border border-border p-4 text-sm transition hover:bg-secondary"
-          >
-            <LogIn className="h-5 w-5" />
-            Login
-          </Link>
-          <Link
-            href="/akun/register"
-            className="flex flex-col items-center gap-2 rounded-xl border border-border p-4 text-sm transition hover:bg-secondary"
-          >
-            <UserPlus className="h-5 w-5" />
-            Daftar
-          </Link>
-        </div>
-      )}
+      <OrderStatusGrid counts={counts} />
 
-      <Link
-        href="/lacak"
-        className="flex items-center gap-3 rounded-xl border border-border p-4 text-sm transition hover:bg-secondary"
-      >
-        <PackageSearch className="h-5 w-5" />
-        <div>
-          <p className="font-medium">Lacak Pesanan</p>
-          <p className="text-xs text-muted-foreground">Tanpa perlu login</p>
-        </div>
-      </Link>
+      <Reveal delay={0.1}>
+        <TrackOrderCard />
+      </Reveal>
+
+      <Reveal delay={0.15}>
+        <MenuList
+          items={buildAccountMenu({ wishlistCount: wishlistCount ?? 0, whatsapp: settings?.whatsapp })}
+        />
+      </Reveal>
+
+      <RecommendSection products={recommended} />
     </div>
   );
 }
