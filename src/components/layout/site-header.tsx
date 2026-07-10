@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Search, Heart, ShoppingBag, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string }) {
   const [query, setQuery] = useState("");
@@ -43,6 +44,7 @@ export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string
           >
             <Search className="h-5 w-5" />
           </Link>
+          <ThemeToggle />
           <Link href="/wishlist" className="rounded-full p-2.5 transition hover:bg-secondary">
             <Heart className="h-5 w-5" />
           </Link>

@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { Toaster } from "sonner";
 import "./globals.css";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SiteHeader } from "@/components/layout/site-header";
+import { ThemedToaster } from "@/components/themed-toaster";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -48,6 +48,7 @@ export const viewport: Viewport = {
 };
 
 import { createClient } from "@/lib/supabase/server";
+import { ThemeProvider } from "@/components/theme-provider";
 
 async function getStoreName() {
   try {
@@ -59,6 +60,21 @@ async function getStoreName() {
   }
 }
 
+// Dijalankan SEBELUM React hydrate, supaya tema yang benar (dark/light
+// sesuai pilihan terakhir user) langsung terpasang tanpa "kedip" warna
+// salah sesaat pas halaman baru dimuat. Default tetap dark kalau user
+// belum pernah memilih (tema bawaan tidak berubah).
+const themeInitScript = `
+(function () {
+  try {
+    var stored = localStorage.getItem('emyu-theme');
+    var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  } catch (e) {}
+})();
+`;
+
 export default async function RootLayout({
   children,
 }: {
@@ -67,12 +83,17 @@ export default async function RootLayout({
   const storeName = await getStoreName();
 
   return (
-    <html lang="id" className={`${inter.variable} dark`} suppressHydrationWarning>
+    <html lang="id" className={inter.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="min-h-dvh bg-background font-sans">
-        <SiteHeader storeName={storeName} />
-        <main className="pb-20 md:pb-0">{children}</main>
-        <BottomNav />
-        <Toaster theme="dark" position="top-center" richColors />
+        <ThemeProvider>
+          <SiteHeader storeName={storeName} />
+          <main className="pb-20 md:pb-0">{children}</main>
+          <BottomNav />
+          <ThemedToaster />
+        </ThemeProvider>
       </body>
     </html>
   );

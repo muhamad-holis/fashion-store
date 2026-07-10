@@ -3,36 +3,37 @@
 @tailwind utilities;
 
 @layer base {
+  /* ============================================================
+     LIGHT MODE — "Sawah Pagi": latar kertas beras + aksen hijau
+     sawah. Dipakai kalau user toggle ke light mode dari header.
+     ============================================================ */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 4%;
+    --background: 48 30% 93%;
+    --foreground: 83 12% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 4%;
+    --card-foreground: 83 12% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 4%;
-    --primary: 0 0% 4%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 4%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 92%;
-    --accent-foreground: 0 0% 4%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 4%;
+    --popover-foreground: 83 12% 13%;
+    --primary: 98 13% 33%;
+    --primary-foreground: 48 30% 96%;
+    --secondary: 51 27% 91%;
+    --secondary-foreground: 83 12% 13%;
+    --muted: 46 25% 87%;
+    --muted-foreground: 53 8% 40%;
+    --accent: 51 27% 91%;
+    --accent-foreground: 83 12% 13%;
+    --destructive: 5 65% 45%;
+    --destructive-foreground: 48 30% 96%;
+    --border: 46 22% 80%;
+    --input: 46 22% 80%;
+    --ring: 98 13% 33%;
     --radius: 0.75rem;
   }
 
-  /* Dark theme adalah default sesuai brief */
-  html {
-    color-scheme: dark;
-  }
-
-  .dark,
-  :root {
+  /* ============================================================
+     DARK MODE — tema bawaan/default (tidak diubah sama sekali).
+     ============================================================ */
+  .dark {
     --background: 0 0% 5%;
     --foreground: 0 0% 98%;
     --card: 0 0% 8%;
@@ -55,6 +56,13 @@
     --radius: 0.9rem;
   }
 
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
   * {
     @apply border-border;
   }
@@ -63,6 +71,7 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv11", "ss01";
     -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 }
 
