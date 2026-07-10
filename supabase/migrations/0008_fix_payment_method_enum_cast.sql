@@ -1,62 +1,21 @@
 -- =========================================================
--- ATOMIC CHECKOUT
+-- FIX: "column method is of type payment_method but expression is of type text"
 -- =========================================================
--- Masalah yang diperbaiki di sini:
--- 1. RACE CONDITION STOK: proses checkout lama membaca stok, lalu
---    mengurangi stok dengan beberapa query terpisah (read -> validate ->
---    write). Jika dua pembeli checkout produk yang sama di waktu yang
---    hampir bersamaan, keduanya bisa lolos validasi stok dengan nilai
---    yang sama-sama "lama" (belum ter-update), sehingga stok bisa minus
---    atau order dibuat padahal barang sudah habis (oversell).
--- 2. ORDER SETENGAH JADI: proses lama membuat order, order_items,
---    payment, dan mengurangi stok lewat banyak request terpisah tanpa
---    transaksi. Jika salah satu langkah gagal di tengah jalan (mis. koneksi
---    putus), order bisa "menggantung" (order dibuat tapi item/pembayaran
---    tidak, atau stok tidak berkurang) - data jadi tidak konsisten.
--- 3. NOMOR ORDER GANDA: generate_order_number() lama pakai count(*), yang
---    juga bisa balapan (dua checkout bersamaan bisa dapat nomor yang sama).
--- 4. SUBMIT GANDA (double-submit): user klik tombol bayar dua kali / retry
---    jaringan bisa membuat 2 order untuk satu kali checkout.
+-- Root cause: fungsi create_order_atomic() menerima p_payment_method
+-- sebagai parameter bertipe `text`, lalu memasukkannya langsung ke kolom
+-- payments.method yang bertipe enum `payment_method`. Postgres hanya bisa
+-- meng-cast text -> enum secara implisit untuk LITERAL string (mis. saat
+-- kamu menulis 'qris' langsung di query), TIDAK untuk nilai yang datang
+-- dari variabel/parameter fungsi. Karena p_payment_method adalah
+-- parameter, cast implisit itu tidak terjadi -> insert gagal setiap kali
+-- checkout dijalankan.
 --
--- Solusi: satu fungsi Postgres (`create_order_atomic`) yang menjalankan
--- SEMUA langkah checkout dalam SATU transaksi database, dengan row-level
--- locking (`for update`) di baris produk/varian yang terlibat, dan
--- idempotency key supaya request yang sama tidak pernah membuat 2 order.
+-- Fix: tambahkan cast eksplisit `::payment_method` saat insert ke tabel
+-- payments. Migration ini me-replace fungsi yang sudah ada di database
+-- (CREATE OR REPLACE), jadi aman dijalankan di project Supabase yang
+-- sudah live tanpa perlu reset data.
 -- =========================================================
 
--- Kolom idempotency: setiap percobaan checkout dari client membawa 1 key
--- unik (dibuat sekali oleh browser). Jika request yang sama terkirim lagi
--- (retry/double click), kita kembalikan order yang sudah ada, bukan buat baru.
-alter table orders add column if not exists idempotency_key text unique;
-
--- Counter nomor order per hari, diupdate secara atomic (insert ... on
--- conflict do update) sehingga tidak mungkin dua transaksi mendapat
--- nomor urut yang sama meski berjalan bersamaan.
-create table if not exists order_number_counters (
-  day text primary key,
-  seq int not null default 0
-);
-
-create or replace function next_order_number()
-returns text as $$
-declare
-  today text := to_char(now(), 'YYYYMMDD');
-  next_seq int;
-begin
-  insert into order_number_counters (day, seq)
-  values (today, 1)
-  on conflict (day) do update set seq = order_number_counters.seq + 1
-  returning seq into next_seq;
-
-  return 'INV-' || today || '-' || lpad(next_seq::text, 4, '0');
-end;
-$$ language plpgsql;
-
--- Fungsi utama checkout. Semua langkah (validasi stok, kurangi stok,
--- buat order, order_items, payment, hapus cart) berjalan dalam satu
--- transaksi implisit milik fungsi ini. Jika ada error di tengah (mis.
--- stok kurang), seluruh perubahan otomatis di-rollback oleh Postgres -
--- tidak ada order/produk yang "setengah jadi".
 create or replace function create_order_atomic(
   p_idempotency_key text,
   p_cart_item_ids uuid[],
@@ -93,9 +52,6 @@ declare
   v_payment_id uuid;
   v_cart_count int;
 begin
-  -- 0. Idempotency: kalau key ini sudah pernah dipakai untuk membuat
-  --    order, langsung kembalikan order yang sudah ada (tidak membuat
-  --    order baru / tidak mengurangi stok lagi).
   if p_idempotency_key is not null then
     select id into v_existing_order_id from orders where idempotency_key = p_idempotency_key;
     if v_existing_order_id is not null then
@@ -108,18 +64,11 @@ begin
     end if;
   end if;
 
-  -- 1. Validasi cart tidak kosong
   select count(*) into v_cart_count from cart_items where id = any(p_cart_item_ids);
   if v_cart_count = 0 then
     raise exception 'Keranjang kosong atau tidak valid' using errcode = 'P0001';
   end if;
 
-  -- 2. Kunci baris produk & varian yang terlibat, urutkan berdasarkan id
-  --    supaya kalau ada 2 checkout bersamaan yang sama-sama menyentuh
-  --    beberapa produk, urutan lock-nya selalu konsisten (mencegah deadlock).
-  --    "for update" membuat transaksi lain yang mencoba mengunci baris yang
-  --    sama HARUS menunggu transaksi ini selesai -> tidak ada lagi
-  --    race condition baca-stok-lama.
   for v_cart in
     select ci.id as cart_item_id, ci.product_id, ci.variant_id, ci.quantity,
            p.name as product_name, p.price as product_price, p.weight_grams,
@@ -150,7 +99,6 @@ begin
     v_total_weight := v_total_weight + (v_cart.weight_grams * v_cart.quantity);
   end loop;
 
-  -- 3. Voucher (jika ada) - divalidasi ulang di server, bukan percaya client
   if p_coupon_code is not null then
     select * into v_coupon from coupons
       where code = upper(p_coupon_code) and is_active = true
@@ -167,10 +115,8 @@ begin
 
   v_grand_total := greatest(0, v_subtotal - v_discount + coalesce(p_shipping_cost, 0));
 
-  -- 4. Nomor order - atomic, tidak mungkin duplikat walau checkout bersamaan
   v_order_number := next_order_number();
 
-  -- 5. Buat order
   insert into orders (
     order_number, user_id, guest_name, guest_phone, guest_email,
     shipping_address, courier_code, courier_service, shipping_cost, shipping_eta,
@@ -183,7 +129,6 @@ begin
     p_coupon_code, p_buyer_note, 'unpaid', p_idempotency_key
   ) returning id into v_order_id;
 
-  -- 6. Order items + kurangi stok sekaligus (baris sudah terkunci dari langkah 2)
   for v_cart in
     select ci.id as cart_item_id, ci.product_id, ci.variant_id, ci.quantity,
            p.name as product_name, p.price as product_price, p.stock as product_stock,
@@ -220,22 +165,13 @@ begin
     update products set sold_count = sold_count + v_cart.quantity where id = v_cart.product_id;
   end loop;
 
-  -- 7. Payment (status pending, menunggu bukti bayar)
-  -- CATATAN FIX: parameter p_payment_method bertipe `text` (dikirim dari
-  -- API route sebagai string biasa), sedangkan kolom payments.method
-  -- bertipe enum `payment_method`. Postgres TIDAK otomatis cast text ->
-  -- enum ketika sumbernya adalah variabel/parameter (hanya literal string
-  -- yang bisa implisit). Karena itu insert ini gagal dengan error
-  -- 'column "method" is of type payment_method but expression is of type text'.
-  -- Solusinya: cast eksplisit p_payment_method::payment_method.
+  -- FIX: cast eksplisit text -> enum payment_method
   insert into payments (order_id, method, channel_detail, amount, status)
   values (v_order_id, p_payment_method::payment_method, p_payment_channel_detail, v_grand_total, 'pending')
   returning id into v_payment_id;
 
-  -- 8. Kosongkan cart yang sudah checkout
   delete from cart_items where id = any(p_cart_item_ids);
 
-  -- 9. Log aktivitas
   insert into activity_logs (actor_type, action, entity, entity_id, metadata)
   values ('system', 'order_created', 'orders', v_order_id::text, jsonb_build_object('order_number', v_order_number));
 

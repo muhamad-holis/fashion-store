@@ -33,9 +33,11 @@ export default function CheckoutPage() {
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
+  const [shippingDropdownOpen, setShippingDropdownOpen] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("qris");
   const [paymentChannel, setPaymentChannel] = useState("");
+  const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
   const [note, setNote] = useState("");
 
   // Kunci idempotency dibuat SEKALI per kunjungan halaman checkout dan
@@ -92,6 +94,7 @@ export default function CheckoutPage() {
         body: JSON.stringify({ destinationCity: form.city, totalWeightGrams: totalWeight }),
       });
       setShippingOptions(options);
+      setShippingDropdownOpen(options.length > 0);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -99,16 +102,31 @@ export default function CheckoutPage() {
     }
   }
 
-  const paymentChannels = useMemo(() => {
+  // Semua channel pembayaran, dikelompokkan per metode - dipakai untuk
+  // tampilan bottom sheet ala TikTok Shop/Shopee (satu daftar, langsung
+  // pilih metode + channel sekaligus).
+  const paymentGroups = useMemo(() => {
     if (!settings) return [];
-    if (paymentMethod === "bank_transfer") {
-      return settings.bank_accounts?.map((b) => `${b.bank} - ${b.account_number} a.n ${b.account_name}`) ?? [];
-    }
-    if (paymentMethod === "ewallet") {
-      return settings.ewallet_accounts?.map((e) => `${e.provider} - ${e.number} a.n ${e.name}`) ?? [];
-    }
-    return ["QRIS"];
-  }, [settings, paymentMethod]);
+    return [
+      {
+        method: "qris" as PaymentMethod,
+        label: "QRIS",
+        channels: ["QRIS"],
+      },
+      {
+        method: "bank_transfer" as PaymentMethod,
+        label: "Transfer Bank",
+        channels:
+          settings.bank_accounts?.map((b) => `${b.bank} - ${b.account_number} a.n ${b.account_name}`) ?? [],
+      },
+      {
+        method: "ewallet" as PaymentMethod,
+        label: "E-Wallet",
+        channels:
+          settings.ewallet_accounts?.map((e) => `${e.provider} - ${e.number} a.n ${e.name}`) ?? [],
+      },
+    ];
+  }, [settings]);
 
   async function submitOrder() {
     // Cegah klik ganda: kalau request sebelumnya masih berjalan, abaikan
@@ -228,65 +246,152 @@ export default function CheckoutPage() {
             Pilih kota tujuan lalu klik "Cek Ongkir" untuk melihat pilihan kurir.
           </p>
         ) : (
-          <div className="space-y-2">
-            {shippingOptions.map((opt, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedShipping(opt)}
-                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition ${
-                  selectedShipping?.courier_code === opt.courier_code && selectedShipping.service === opt.service
-                    ? "border-foreground"
-                    : "border-border"
-                }`}
-              >
+          <div className="relative">
+            {/* Tombol dropdown: menampilkan kurir terpilih, klik untuk buka/tutup daftar */}
+            <button
+              type="button"
+              onClick={() => setShippingDropdownOpen((v) => !v)}
+              className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2.5 text-left text-sm"
+            >
+              {selectedShipping ? (
                 <span>
-                  <span className="font-medium">{opt.courier_name}</span> · {opt.service} · {opt.eta}
+                  <span className="font-medium">{selectedShipping.courier_name}</span> ·{" "}
+                  {selectedShipping.service} · {selectedShipping.eta} ·{" "}
+                  <span className="font-semibold">{formatRupiah(selectedShipping.cost)}</span>
                 </span>
-                <span className="font-semibold">{formatRupiah(opt.cost)}</span>
-              </button>
-            ))}
+              ) : (
+                <span className="text-muted-foreground">Pilih jasa pengiriman</span>
+              )}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={`ml-2 shrink-0 transition-transform ${shippingDropdownOpen ? "rotate-180" : ""}`}
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+
+            {/* Daftar kurir: hanya tampil saat dropdown dibuka. Memilih salah
+                satu langsung menutup dropdown otomatis. */}
+            {shippingDropdownOpen && (
+              <div className="mt-1.5 max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-border p-1.5">
+                {shippingOptions.map((opt, idx) => {
+                  const active =
+                    selectedShipping?.courier_code === opt.courier_code &&
+                    selectedShipping.service === opt.service;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setSelectedShipping(opt);
+                        setShippingDropdownOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition ${
+                        active ? "border-foreground bg-secondary/50" : "border-transparent hover:bg-secondary/30"
+                      }`}
+                    >
+                      <span>
+                        <span className="font-medium">{opt.courier_name}</span> · {opt.service} · {opt.eta}
+                      </span>
+                      <span className="font-semibold">{formatRupiah(opt.cost)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </section>
 
-      {/* PEMBAYARAN */}
+      {/* PEMBAYARAN - gaya marketplace (TikTok Shop / Shopee):
+          baris ringkasan yang menampilkan metode terpilih, tap untuk
+          membuka bottom sheet berisi semua pilihan. Memilih salah satu
+          langsung menutup sheet. */}
       <section className="rounded-xl border border-border p-4">
         <h2 className="mb-3 text-sm font-semibold">Metode Pembayaran</h2>
-        <div className="mb-3 grid grid-cols-3 gap-2">
-          {(["qris", "bank_transfer", "ewallet"] as PaymentMethod[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => {
-                setPaymentMethod(m);
-                setPaymentChannel("");
-              }}
-              className={`rounded-lg border px-3 py-2 text-xs capitalize transition ${
-                paymentMethod === m ? "border-foreground bg-foreground text-background" : "border-border"
-              }`}
-            >
-              {m === "qris" ? "QRIS" : m === "bank_transfer" ? "Transfer Bank" : "E-Wallet"}
-            </button>
-          ))}
-        </div>
-        <div className="space-y-1.5">
-          {paymentChannels.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              Belum ada channel {paymentMethod} yang diatur admin.
-            </p>
+        <button
+          type="button"
+          onClick={() => setPaymentSheetOpen(true)}
+          className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2.5 text-left text-sm"
+        >
+          {paymentChannel ? (
+            <span className="flex items-center gap-2 min-w-0">
+              <PaymentIcon method={paymentMethod} />
+              <span className="truncate">
+                <span className="font-medium">
+                  {paymentMethod === "qris" ? "QRIS" : paymentMethod === "bank_transfer" ? "Transfer Bank" : "E-Wallet"}
+                </span>
+                {paymentMethod !== "qris" && <span className="text-muted-foreground"> · {paymentChannel}</span>}
+              </span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Pilih metode pembayaran</span>
           )}
-          {paymentChannels.map((ch) => (
-            <button
-              key={ch}
-              onClick={() => setPaymentChannel(ch)}
-              className={`block w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
-                paymentChannel === ch ? "border-foreground" : "border-border"
-              }`}
-            >
-              {ch}
-            </button>
-          ))}
-        </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ml-2 shrink-0">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
       </section>
+
+      {/* Bottom sheet pilihan pembayaran */}
+      {paymentSheetOpen && (
+        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/50" onClick={() => setPaymentSheetOpen(false)}>
+          <div
+            className="max-h-[75vh] w-full max-w-[480px] overflow-y-auto rounded-t-2xl bg-background p-4 pb-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
+            <h3 className="mb-3 text-sm font-semibold">Pilih Metode Pembayaran</h3>
+            <div className="space-y-4">
+              {paymentGroups.map((group) => (
+                <div key={group.method}>
+                  <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                    <PaymentIcon method={group.method} />
+                    {group.label}
+                  </div>
+                  {group.channels.length === 0 ? (
+                    <p className="pl-6 text-xs text-muted-foreground">Belum ada channel yang diatur admin.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {group.channels.map((ch) => {
+                        const active = paymentMethod === group.method && paymentChannel === ch;
+                        return (
+                          <button
+                            key={ch}
+                            type="button"
+                            onClick={() => {
+                              setPaymentMethod(group.method);
+                              setPaymentChannel(ch);
+                              setPaymentSheetOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm transition ${
+                              active ? "border-foreground bg-secondary/50" : "border-border"
+                            }`}
+                          >
+                            <span>{ch}</span>
+                            <span
+                              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                                active ? "border-foreground" : "border-muted-foreground"
+                              }`}
+                            >
+                              {active && <span className="h-2 w-2 rounded-full bg-foreground" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CATATAN */}
       <section className="rounded-xl border border-border p-4">
@@ -331,6 +436,17 @@ export default function CheckoutPage() {
       </div>
     </div>
   );
+}
+
+function PaymentIcon({ method }: { method: PaymentMethod }) {
+  const base = "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold";
+  if (method === "qris") {
+    return <span className={`${base} bg-blue-500/15 text-blue-500`}>QR</span>;
+  }
+  if (method === "bank_transfer") {
+    return <span className={`${base} bg-emerald-500/15 text-emerald-500`}>🏦</span>;
+  }
+  return <span className={`${base} bg-purple-500/15 text-purple-500`}>💳</span>;
 }
 
 function Row({ label, value }: { label: string; value: string }) {
