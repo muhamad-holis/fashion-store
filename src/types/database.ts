@@ -294,6 +294,15 @@ export type Notification = {
   created_at: string;
 }
 
+export type Faq = {
+  id: string;
+  question: string;
+  answer: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
 export type ActivityLog = {
   id: string;
   actor_id: string | null;
@@ -332,6 +341,9 @@ export type StoreSettings = {
     logo_url?: string;
     is_active?: boolean;
   }[];
+  privacy_policy: string | null;
+  terms_conditions: string | null;
+  about_us: string | null;
   updated_at: string;
 }
 
@@ -385,6 +397,7 @@ export type Database = {
       banners: TableDef<Banner>;
       notifications: TableDef<Notification>;
       activity_logs: TableDef<ActivityLog>;
+      faqs: TableDef<Faq>;
       order_number_counters: TableDef<{ day: string; seq: number }>;
     };
     Views: Record<string, never>;

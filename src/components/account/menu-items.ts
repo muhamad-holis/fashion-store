@@ -37,6 +37,10 @@ export const BUILT_ROUTES = new Set([
   "/akun/alamat",
   "/akun/voucher",
   "/akun/notifikasi",
+  "/akun/bantuan",
+  "/akun/privasi",
+  "/akun/syarat",
+  "/akun/tentang",
 ]);
 
 export function buildAccountMenu({

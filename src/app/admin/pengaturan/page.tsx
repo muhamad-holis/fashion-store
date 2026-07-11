@@ -36,6 +36,9 @@ export default function AdminSettingsPage() {
     email: "",
     operational_hours: "",
     qris_image_url: "",
+    privacy_policy: "",
+    terms_conditions: "",
+    about_us: "",
   });
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [ewalletAccounts, setEwalletAccounts] = useState<EwalletAccount[]>([]);
@@ -56,6 +59,9 @@ export default function AdminSettingsPage() {
           email: data.email ?? "",
           operational_hours: data.operational_hours ?? "",
           qris_image_url: data.qris_image_url ?? "",
+          privacy_policy: data.privacy_policy ?? "",
+          terms_conditions: data.terms_conditions ?? "",
+          about_us: data.about_us ?? "",
         });
         setBankAccounts(data.bank_accounts ?? []);
         setEwalletAccounts(data.ewallet_accounts ?? []);
@@ -291,6 +297,37 @@ export default function AdminSettingsPage() {
             />
           </label>
         </div>
+      </Section>
+
+      <Section title="Konten Legal & Tentang Kami">
+        <Field label="Tentang Kami">
+          <textarea
+            value={form.about_us}
+            onChange={(e) => setForm({ ...form, about_us: e.target.value })}
+            rows={5}
+            className="input resize-none"
+            placeholder="Cerita singkat tentang brand/toko kamu..."
+          />
+        </Field>
+        <Field label="Kebijakan Privasi">
+          <textarea
+            value={form.privacy_policy}
+            onChange={(e) => setForm({ ...form, privacy_policy: e.target.value })}
+            rows={8}
+            className="input resize-none"
+          />
+        </Field>
+        <Field label="Syarat & Ketentuan">
+          <textarea
+            value={form.terms_conditions}
+            onChange={(e) => setForm({ ...form, terms_conditions: e.target.value })}
+            rows={8}
+            className="input resize-none"
+          />
+        </Field>
+        <p className="text-xs text-muted-foreground">
+          Pakai baris kosong untuk memisahkan paragraf - tampilannya akan mengikuti format ini persis di halaman pelanggan.
+        </p>
       </Section>
 
       <button
