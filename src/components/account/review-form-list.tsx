@@ -122,7 +122,20 @@ function ReviewCard({
         comment: comment.trim() || undefined,
         images: imageUrls,
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        // Kode 23505 = unique_violation. Ini bisa terjadi kalau user klik
+        // "Kirim Ulasan" dua kali dengan cepat, atau submit dari 2 tab
+        // sekaligus - keduanya lolos validasi "belum diulas" di client
+        // sebelum salah satunya sempat menyimpan. Database yang jadi
+        // penjaga terakhir lewat unique index di kolom order_item_id.
+        if (insertError.code === "23505") {
+          toast.error("Produk ini sepertinya baru saja diulas. Halaman akan diperbarui.");
+          onDone();
+          router.refresh();
+          return;
+        }
+        throw insertError;
+      }
 
       toast.success("Ulasan berhasil dikirim. Terima kasih!");
       onDone();

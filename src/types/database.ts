@@ -432,6 +432,10 @@ export type Database = {
         };
         Returns: { order_id: string; payment_id: string; already_existed: boolean };
       };
+      confirm_order_received: {
+        Args: { p_order_number: string };
+        Returns: void;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

@@ -25,13 +25,13 @@ export function OrderCardActions({
 
   async function handleConfirmReceived() {
     setConfirming(true);
-    // RLS "user confirm own arrived order" hanya mengizinkan transisi
-    // arrived -> completed milik user ini sendiri, jadi aman dipanggil
-    // langsung dari client tanpa API route tambahan.
-    const { error } = await supabase
-      .from("orders")
-      .update({ status: "completed" })
-      .eq("order_number", orderNumber);
+    // Sebelumnya ini raw UPDATE ke tabel orders lewat RLS policy - sekarang
+    // dipindah ke RPC function khusus (confirm_order_received) yang HANYA
+    // pernah mengubah kolom status, supaya tidak ada celah kolom lain bisa
+    // ikut "menumpang" berubah lewat panggilan API langsung.
+    const { error } = await supabase.rpc("confirm_order_received", {
+      p_order_number: orderNumber,
+    });
 
     setConfirming(false);
 
