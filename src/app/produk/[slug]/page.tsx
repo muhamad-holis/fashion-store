@@ -89,70 +89,68 @@ export default async function ProductDetailPage({
           <div className="my-5 border-t border-border" />
 
           <ProductActions product={product} />
+
+          <div className="mt-4 rounded-xl border border-border p-4 text-sm">
+            <p className="mb-1.5 font-medium">Estimasi Pengiriman</p>
+            <p className="text-muted-foreground">
+              Dikirim dalam {product.estimated_ship_days}. Ongkir dihitung otomatis saat checkout
+              berdasarkan alamat dan berat produk ({product.weight_grams} gram).
+            </p>
+          </div>
         </div>
       </div>
 
       {/* DESKRIPSI & DETAIL */}
-      <div className="mt-10 grid gap-6 md:grid-cols-[1fr_320px]">
-        <div className="space-y-6">
-          <Section title="Deskripsi Produk">
+      <div className="mt-10 max-w-2xl space-y-6">
+        <Section title="Deskripsi Produk">
+          <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+            {product.description || "Belum ada deskripsi untuk produk ini."}
+          </p>
+        </Section>
+
+        {product.material_detail && (
+          <Section title="Detail Bahan">
             <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-              {product.description || "Belum ada deskripsi untuk produk ini."}
+              {product.material_detail}
             </p>
           </Section>
+        )}
 
-          {product.material_detail && (
-            <Section title="Detail Bahan">
-              <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                {product.material_detail}
-              </p>
-            </Section>
-          )}
-
-          {product.size_guide && (
-            <Section title="Panduan Ukuran">
-              <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-                {product.size_guide}
-              </p>
-            </Section>
-          )}
-
-          <Section title={`Ulasan Pembeli (${product.review_count})`}>
-            {product.reviews && product.reviews.length > 0 ? (
-              <div className="space-y-4">
-                {product.reviews
-                  .filter((r) => r.is_visible)
-                  .map((r) => (
-                    <div key={r.id} className="border-b border-border pb-4 last:border-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">{r.reviewer_name}</p>
-                        <span className="text-xs text-muted-foreground">{formatDate(r.created_at)}</span>
-                      </div>
-                      <div className="my-1 flex gap-0.5">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-3.5 w-3.5 ${i < r.rating ? "fill-current" : "text-muted-foreground"}`}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{r.comment}</p>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Belum ada ulasan untuk produk ini.</p>
-            )}
+        {product.size_guide && (
+          <Section title="Panduan Ukuran">
+            <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+              {product.size_guide}
+            </p>
           </Section>
-        </div>
+        )}
 
-        <div className="rounded-xl border border-border p-4 text-sm">
-          <p className="mb-2 font-medium">Estimasi Pengiriman</p>
-          <p className="text-muted-foreground">
-            Dikirim dalam {product.estimated_ship_days}. Ongkir dihitung otomatis saat checkout
-            berdasarkan alamat dan berat produk ({product.weight_grams} gram).
-          </p>
-        </div>
+        <Section title={`Ulasan Pembeli (${product.review_count})`}>
+          {product.reviews && product.reviews.length > 0 ? (
+            <div className="space-y-4">
+              {product.reviews
+                .filter((r) => r.is_visible)
+                .map((r) => (
+                  <div key={r.id} className="border-b border-border pb-4 last:border-0">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">{r.reviewer_name}</p>
+                      <span className="text-xs text-muted-foreground">{formatDate(r.created_at)}</span>
+                    </div>
+                    <div className="my-1 flex gap-0.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-3.5 w-3.5 ${i < r.rating ? "fill-current" : "text-muted-foreground"}`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{r.comment}</p>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Belum ada ulasan untuk produk ini.</p>
+          )}
+        </Section>
       </div>
 
       {related.length > 0 && (
