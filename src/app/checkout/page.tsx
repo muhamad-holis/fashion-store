@@ -3,20 +3,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Loader2, Ticket, X } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
+import { createClient } from "@/lib/supabase/client";
 import { PROVINCES, CITIES_BY_PROVINCE } from "@/lib/regions";
-import type { CartItem, StoreSettings } from "@/types/database";
+import type { CartItem, Coupon, StoreSettings } from "@/types/database";
 import type { ShippingOption } from "@/lib/shipping";
 
 type PaymentMethod = "bank_transfer" | "ewallet" | "qris";
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [items, setItems] = useState<CartItem[]>([]);
   const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   const [form, setForm] = useState({
     recipient_name: "",
@@ -77,9 +84,68 @@ export default function CheckoutPage() {
     (sum, item) => sum + (item.products?.weight_grams ?? 0) * item.quantity,
     0
   );
-  const grandTotal = subtotal + (selectedShipping?.cost ?? 0);
+
+  // Perhitungan diskon di sini HANYA untuk preview di layar - perhitungan
+  // yang benar-benar dipakai & final selalu dihitung ULANG di server oleh
+  // create_order_atomic() (lihat migrations/0005_atomic_checkout.sql),
+  // jadi tidak bisa dimanipulasi dari client.
+  const discount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.discount_type === "percent") {
+      const raw = (subtotal * appliedCoupon.discount_value) / 100;
+      return Math.min(raw, appliedCoupon.max_discount ?? raw);
+    }
+    return Math.min(appliedCoupon.discount_value, subtotal);
+  }, [appliedCoupon, subtotal]);
+
+  const grandTotal = Math.max(0, subtotal - discount) + (selectedShipping?.cost ?? 0);
 
   const cities = form.province ? CITIES_BY_PROVINCE[form.province] ?? [] : [];
+
+  async function applyCoupon() {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+
+    setApplyingCoupon(true);
+    try {
+      const { data: coupon, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("code", code)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!coupon) {
+        toast.error("Kode voucher tidak ditemukan atau sudah tidak aktif");
+        return;
+      }
+      if (coupon.valid_until && new Date(coupon.valid_until) < new Date()) {
+        toast.error("Voucher ini sudah kedaluwarsa");
+        return;
+      }
+      if (coupon.usage_limit != null && coupon.used_count >= coupon.usage_limit) {
+        toast.error("Kuota voucher ini sudah habis");
+        return;
+      }
+      if (coupon.min_purchase && subtotal < coupon.min_purchase) {
+        toast.error(`Minimal belanja ${formatRupiah(coupon.min_purchase)} untuk pakai voucher ini`);
+        return;
+      }
+
+      setAppliedCoupon(coupon as Coupon);
+      toast.success("Voucher berhasil diterapkan");
+    } catch (e: any) {
+      toast.error(e.message || "Gagal memeriksa voucher");
+    } finally {
+      setApplyingCoupon(false);
+    }
+  }
+
+  function removeCoupon() {
+    setAppliedCoupon(null);
+    setCouponInput("");
+  }
 
   async function fetchShipping() {
     if (!form.city) {
@@ -163,6 +229,7 @@ export default function CheckoutPage() {
           payment_method: paymentMethod,
           payment_channel_detail: paymentChannel,
           buyer_note: note || undefined,
+          coupon_code: appliedCoupon?.code,
         }),
       });
       toast.success("Pesanan berhasil dibuat");
@@ -393,6 +460,51 @@ export default function CheckoutPage() {
         </div>
       )}
 
+      {/* VOUCHER */}
+      <section className="rounded-xl border border-border p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <Ticket className="h-4 w-4" />
+          Voucher / Kode Promo
+        </h2>
+        {appliedCoupon ? (
+          <div className="flex items-center justify-between rounded-lg border border-dashed border-border px-3 py-2.5">
+            <div>
+              <p className="font-mono text-sm font-semibold">{appliedCoupon.code}</p>
+              <p className="text-xs text-muted-foreground">
+                Hemat {formatRupiah(discount)}
+                {appliedCoupon.description ? ` · ${appliedCoupon.description}` : ""}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={removeCoupon}
+              className="rounded-full p-1.5 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              aria-label="Hapus voucher"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              value={couponInput}
+              onChange={(e) => setCouponInput(e.target.value)}
+              placeholder="Masukkan kode voucher"
+              className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none"
+            />
+            <button
+              type="button"
+              onClick={applyCoupon}
+              disabled={applyingCoupon || !couponInput.trim()}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-xs font-medium transition hover:bg-secondary disabled:opacity-50"
+            >
+              {applyingCoupon && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Terapkan
+            </button>
+          </div>
+        )}
+      </section>
+
       {/* CATATAN */}
       <section className="rounded-xl border border-border p-4">
         <label className="mb-1 block text-sm font-semibold">Catatan Pembeli (opsional)</label>
@@ -410,6 +522,7 @@ export default function CheckoutPage() {
         <h2 className="mb-3 font-semibold">Ringkasan Pembayaran</h2>
         <div className="space-y-1.5 text-muted-foreground">
           <Row label="Subtotal" value={formatRupiah(subtotal)} />
+          {appliedCoupon && <Row label="Diskon Voucher" value={`- ${formatRupiah(discount)}`} />}
           <Row label="Ongkir" value={selectedShipping ? formatRupiah(selectedShipping.cost) : "-"} />
           <Row label="Total Berat" value={`${(totalWeight / 1000).toFixed(1)} kg`} />
         </div>
