@@ -114,12 +114,12 @@ function ReviewCard({
       }
 
       const { error: insertError } = await supabase.from("reviews").insert({
-        product_id: item.product_id,
+        product_id: item.product_id ?? undefined,
         order_item_id: item.id,
         user_id: user.id,
         reviewer_name: reviewerName,
         rating,
-        comment: comment.trim() || null,
+        comment: comment.trim() || undefined,
         images: imageUrls,
       });
       if (insertError) throw insertError;
