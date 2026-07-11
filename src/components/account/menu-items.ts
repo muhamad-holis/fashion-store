@@ -36,13 +36,16 @@ export const BUILT_ROUTES = new Set([
   "/pembayaran",
   "/akun/alamat",
   "/akun/voucher",
+  "/akun/notifikasi",
 ]);
 
 export function buildAccountMenu({
   wishlistCount,
+  unreadNotifCount,
   whatsapp,
 }: {
   wishlistCount?: number;
+  unreadNotifCount?: number;
   whatsapp?: string | null;
 }): MenuItem[] {
   return [
@@ -58,7 +61,12 @@ export function buildAccountMenu({
     },
     { label: "Riwayat Pembelian", icon: History, href: "/akun/pesanan" },
     { label: "Produk Dilihat", icon: Eye, href: "/akun/dilihat" },
-    { label: "Notifikasi", icon: Bell, href: "/akun/notifikasi" },
+    {
+      label: "Notifikasi",
+      icon: Bell,
+      href: "/akun/notifikasi",
+      badge: unreadNotifCount ? `${unreadNotifCount} Baru` : undefined,
+    },
     { label: "Pusat Bantuan", icon: LifeBuoy, href: "/akun/bantuan" },
     whatsapp
       ? {

@@ -84,14 +84,16 @@ function MenuRow({ item, index }: { item: MenuItem; index: number }) {
 // props berisi referensi fungsi/komponen, bukan data biasa).
 export function MenuList({
   wishlistCount,
+  unreadNotifCount,
   whatsapp,
   excludeSignout,
 }: {
   wishlistCount?: number;
+  unreadNotifCount?: number;
   whatsapp?: string | null;
   excludeSignout?: boolean;
 }) {
-  const items = buildAccountMenu({ wishlistCount, whatsapp });
+  const items = buildAccountMenu({ wishlistCount, unreadNotifCount, whatsapp });
   const finalItems = excludeSignout ? items.filter((i) => i.action !== "signout") : items;
 
   return (
