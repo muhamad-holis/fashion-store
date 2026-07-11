@@ -34,6 +34,7 @@ export const BUILT_ROUTES = new Set([
   "/wishlist",
   "/akun/pengaturan",
   "/pembayaran",
+  "/akun/alamat",
 ]);
 
 export function buildAccountMenu({
