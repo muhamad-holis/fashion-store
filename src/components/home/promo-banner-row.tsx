@@ -22,7 +22,7 @@ export function PromoBannerRow({ banners }: Props) {
       <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 snap-x snap-mandatory">
         {banners.map((banner) => {
           const card = (
-            <div className="relative aspect-[4/5] h-40 w-32 shrink-0 overflow-hidden rounded-xl bg-secondary sm:h-44 sm:w-36">
+            <div className="relative aspect-[4/5] h-40 w-32 shrink-0 overflow-hidden rounded-xl bg-secondary shadow-sm ring-1 ring-black/5 transition-transform duration-150 ease-out active:scale-95 sm:h-44 sm:w-36">
               <Image
                 src={banner.image_url}
                 alt={banner.title ?? "Promo"}
@@ -34,7 +34,11 @@ export function PromoBannerRow({ banners }: Props) {
           );
 
           return banner.link_url ? (
-            <Link key={banner.id} href={banner.link_url} className="snap-start">
+            <Link
+              key={banner.id}
+              href={banner.link_url}
+              className="snap-start touch-manipulation active:opacity-80"
+            >
               {card}
             </Link>
           ) : (
