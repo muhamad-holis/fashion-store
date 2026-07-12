@@ -117,11 +117,28 @@ const splashInitScript = `
       return;
     }
     sessionStorage.setItem('emyu_splash_shown', '1');
-    setTimeout(function () {
-      el.style.opacity = '0';
-      el.style.pointerEvents = 'none';
-      setTimeout(function () { el.style.display = 'none'; }, 300);
-    }, 650);
+
+    function hideSplash() {
+      setTimeout(function () {
+        el.style.opacity = '0';
+        el.style.pointerEvents = 'none';
+        setTimeout(function () { el.style.display = 'none'; }, 300);
+      }, 650);
+    }
+
+    // PENTING: hitung mundur baru mulai SETELAH halaman benar-benar selesai
+    // dimuat (window 'load'), bukan dari saat script ini di-parse. Kalau
+    // dihitung dari saat parse, timer-nya kepotong/habis SELAGI masih
+    // ketutup splash bawaan OS (ikon di background hitam, dipasang dari
+    // manifest.ts) yang tampil duluan saat halaman masih loading - jadi
+    // splash custom ini nyaris tidak sempat terlihat. Dengan nunggu 'load',
+    // splash custom baru mulai dihitung persis dari saat user PERTAMA kali
+    // benar-benar bisa melihat halamannya.
+    if (document.readyState === "complete") {
+      hideSplash();
+    } else {
+      window.addEventListener("load", hideSplash);
+    }
   } catch (e) {}
 })();
 `;
