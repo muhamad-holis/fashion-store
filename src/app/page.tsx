@@ -6,6 +6,7 @@ import { ProductCard } from "@/components/product/product-card";
 import { FlashSaleCountdown } from "@/components/product/flash-sale-countdown";
 import { TrustBadges } from "@/components/home/trust-badges";
 import { HeroBannerCarousel } from "@/components/home/hero-banner-carousel";
+import { PromoBannerRow } from "@/components/home/promo-banner-row";
 import type { Product, Category } from "@/types/database";
 
 export const revalidate = 60;
@@ -13,12 +14,18 @@ export const revalidate = 60;
 async function getHomeData() {
   const supabase = await createClient();
 
-  const [{ data: banners }, { data: categories }, { data: flashSale }, { data: newest }, { data: bestSeller }] =
+  const [{ data: banners }, { data: promoBanners }, { data: categories }, { data: flashSale }, { data: newest }, { data: bestSeller }] =
     await Promise.all([
       supabase
         .from("banners")
         .select("*")
         .eq("placement", "hero")
+        .eq("is_active", true)
+        .order("sort_order"),
+      supabase
+        .from("banners")
+        .select("*")
+        .eq("placement", "promo")
         .eq("is_active", true)
         .order("sort_order"),
       supabase.from("categories").select("*").eq("is_active", true).order("sort_order"),
@@ -44,6 +51,7 @@ async function getHomeData() {
 
   return {
     banners: banners ?? [],
+    promoBanners: promoBanners ?? [],
     categories: (categories as Category[]) ?? [],
     flashSale: (flashSale as Product[]) ?? [],
     newest: (newest as Product[]) ?? [],
@@ -52,7 +60,7 @@ async function getHomeData() {
 }
 
 export default async function HomePage() {
-  const { banners, categories, flashSale, newest, bestSeller } = await getHomeData();
+  const { banners, promoBanners, categories, flashSale, newest, bestSeller } = await getHomeData();
 
   // Ambil waktu berakhir flash sale yang PALING DEKAT dari produk-produk
   // yang sedang tayang, buat ditampilkan sebagai countdown asli (bukan
@@ -96,6 +104,9 @@ export default async function HomePage() {
 
       {/* TRUST BADGES */}
       <TrustBadges />
+
+      {/* BANNER PROMO */}
+      <PromoBannerRow banners={promoBanners} />
 
       {/* FLASH SALE */}
       {flashSale.length > 0 && (
