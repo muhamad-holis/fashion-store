@@ -50,7 +50,6 @@ export default async function AccountPage() {
   if (!user) {
     return (
       <div className="container max-w-md space-y-4 py-6">
-        <h1 className="px-1 text-xl font-bold tracking-tight">Akun Saya</h1>
         <GuestCard />
         <Reveal delay={0.1}>
           <TrackOrderCard />
@@ -93,8 +92,6 @@ export default async function AccountPage() {
 
   return (
     <div className="container max-w-md space-y-4 py-6">
-      <h1 className="px-1 text-xl font-bold tracking-tight">Akun Saya</h1>
-
       <ProfileCard
         name={displayName}
         subtitle={profile?.phone || user.email || undefined}
