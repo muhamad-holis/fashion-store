@@ -1,67 +1,127 @@
 # Fashion Store — E-Commerce Fashion Modern
 
-Fondasi production-ready untuk toko fashion online. Tema hitam-putih, elegant,
-mobile-first ala TikTok Shop. Nama brand diatur lewat **Admin > Pengaturan Toko**
-(bukan hardcode), jadi tabel `settings` sudah punya default `"Fashion Store"`
-yang bisa diganti kapan saja.
+Toko fashion online production-ready. Tema hitam-putih, elegant, mobile-first
+ala TikTok Shop. Nama brand, logo, kontak, rekening, dan seluruh konten
+legal diatur lewat **Admin Panel** (tidak hardcode di kode).
 
 ## Status Project
 
-Ini dibangun **bertahap**. Yang sudah selesai:
+Dibangun **bertahap**, sudah melewati beberapa audit bug. Berikut yang
+sudah selesai dan berjalan:
 
-- ✅ Struktur project Next.js 15 + TypeScript + Tailwind + Shadcn-ready
-- ✅ Schema database lengkap (25 tabel) + Row Level Security + Storage buckets
-- ✅ Tema dark elegant hitam-putih, font Inter, komponen skeleton loading
-- ✅ Halaman Home (hero, kategori, flash sale, terbaru, terlaris) — data live dari Supabase
-- ✅ Header + bottom navigation mobile
-- ✅ Middleware auth untuk proteksi `/admin`
+### Toko (customer-facing)
+
+- ✅ Halaman **Home** — hero, kategori, flash sale (dengan countdown), produk
+  terbaru, produk terlaris, semua data live dari Supabase
+- ✅ **Listing produk** dengan filter (kategori, harga, warna, ukuran,
+  rating) & sort, serta halaman **detail produk** — gallery foto/video +
+  zoom, pilih varian warna/ukuran, deskripsi, detail bahan, panduan ukuran,
+  ulasan pembeli, produk serupa
+- ✅ **Keranjang** — tambah, ubah jumlah, hapus, mendukung guest
+  (`session_id` di localStorage) maupun user login
+- ✅ **Wishlist** — toggle dari halaman produk, guest & user login
+- ✅ **Checkout guest-friendly**:
+  - Alamat, cek ongkir real-time per kurir, pilih metode bayar
+    (QRIS/transfer bank/e-wallet), voucher, catatan pembeli
+  - **Auto-isi alamat dari alamat tersimpan di akun** (alamat utama
+    otomatis terisi kalau user sudah login & punya alamat tersimpan; bisa
+    ganti ke alamat lain kalau punya lebih dari satu)
+  - Anti-order-ganda lewat idempotency key, kalkulasi harga/stok/diskon
+    final selalu dihitung ulang di server (`create_order_atomic`), tidak
+    percaya input client
+- ✅ **Invoice & upload bukti pembayaran** — tampilkan QRIS/rekening
+  tujuan sesuai channel yang dipilih, upload bukti transfer, status
+  verifikasi real-time
+- ✅ **Lacak pesanan tanpa login** — cukup nomor order + nomor HP
+- ✅ **Akun pelanggan** (opsional, checkout tetap bisa tanpa akun):
+  - Login & register (Supabase Auth)
+  - Edit profil (nama, HP, foto avatar)
+  - **Kelola alamat** (`/akun/alamat`) — banyak alamat, tandai alamat utama
+  - Riwayat & status pesanan, **konfirmasi "Pesanan Diterima"**
+    (arrived → completed)
+  - **Beri ulasan produk** setelah pesanan selesai — rating produk & jumlah
+    ulasan ter-update otomatis lewat trigger
+  - **Ajukan retur/refund** per item pesanan (alasan, deskripsi, foto),
+    lihat status pengajuan
+  - **Notifikasi otomatis** setiap status pesanan/retur berubah
+  - Voucher aktif yang bisa dipakai
+  - Pusat Bantuan (FAQ dari database + link WhatsApp CS)
+  - Halaman statis: Tentang Kami, Syarat & Ketentuan, Kebijakan Privasi
+    (isinya diatur dari Admin, bukan hardcode)
+  - Pengaturan tema (dark/light) & logout
+
+### Admin Panel
+
+- ✅ Login admin (`/admin/login`) dengan cek role di tabel `admins`,
+  proteksi seluruh `/admin/*` via middleware
+- ✅ Dashboard — total pendapatan, order, produk, grafik penjualan 7 hari,
+  produk terlaris
+- ✅ CRUD Produk — nama, harga, stok, upload multi-foto, varian
+  warna & ukuran dengan stok per kombinasi, SEO, status
+  aktif/flash sale/new arrival
+- ✅ CRUD Kategori (dengan upload foto)
+- ✅ CRUD Banner (hero & promo)
+- ✅ CRUD Voucher (persen/nominal, min. pembelian, limit pemakaian —
+  kuota berkurang tepat 1x per pemakaian, sudah diperbaiki dari bug double count)
+- ✅ Manajemen Order — filter status, detail order, update status, input
+  nomor resi, cetak invoice
+- ✅ **Verifikasi Pembayaran** — lihat bukti transfer/QRIS yang diupload
+  user, terima/tolak, otomatis mengubah status order & mengirim notifikasi
+- ✅ **Kelola Retur/Refund** — approve/reject pengajuan retur, catat nominal
+  refund
+- ✅ Moderasi Review (sembunyikan/tampilkan ulasan)
+- ✅ Daftar Customer terdaftar
+- ✅ **Kelola FAQ** untuk Pusat Bantuan
+- ✅ **Pengaturan Pembayaran** — rekening bank, e-wallet, upload QRIS,
+  dikelola terpisah dari pengaturan umum
+- ✅ **Pengaturan Toko** — nama brand, logo, favicon, kontak, sosial media,
+  konten Tentang Kami/Syarat/Privasi
+- ✅ **Kelola Admin** (khusus super_admin) — tambah/hapus admin lain
+  langsung dari panel, tanpa perlu SQL Editor lagi
+
+### Infrastruktur
+
+- ✅ Next.js 15 + TypeScript + Tailwind, tema dark elegant, skeleton loading
+- ✅ Schema database lengkap (migration 0000–0014) + Row Level Security +
+  Storage buckets, atomic checkout, integrity constraints
 - ✅ Modul ongkir siap plug ke RajaOngkir/Komerce, fallback kalkulasi manual
-- ✅ **Halaman listing produk** dengan filter (kategori, harga, warna, ukuran, rating) & sort
-- ✅ **Halaman detail produk** — gallery foto/video, zoom, pilih varian warna/ukuran, deskripsi, detail bahan, panduan ukuran, ulasan, produk serupa
-- ✅ **Keranjang** — tambah, edit jumlah, hapus, input voucher, mendukung guest (session_id) & user login
-- ✅ **Wishlist** — toggle dari halaman produk, mendukung guest & user login
-- ✅ **Checkout guest-friendly** — alamat, cek ongkir real-time per kurir, pilih metode bayar (QRIS/transfer/e-wallet), catatan pembeli
-- ✅ **Invoice & upload bukti pembayaran** — tampilkan QRIS/rekening tujuan, upload bukti transfer
-- ✅ **Lacak pesanan** tanpa login — cukup nomor order + nomor HP
-- ✅ API routes: `/api/cart`, `/api/wishlist`, `/api/shipping`, `/api/orders`, `/api/orders/track`, `/api/orders/payment-proof`, `/api/settings` — semua validasi harga & stok dilakukan di server, tidak percaya input client
+  kalau API key kosong
+- ✅ Notifikasi otomatis via trigger database (status pesanan & retur)
+- ✅ API routes: `/api/cart`, `/api/wishlist`, `/api/shipping`,
+  `/api/orders`, `/api/orders/track`, `/api/orders/payment-proof`,
+  `/api/orders/mine/[orderNumber]`, `/api/settings`, `/api/admin/me`,
+  `/api/admin/admins` — semua validasi harga/stok/hak akses dilakukan di
+  server, tidak percaya input client
 
-- ✅ **Admin Panel lengkap**:
-  - Login admin (`/admin/login`) dengan cek role di tabel `admins`
-  - Dashboard: total pendapatan, order, produk, grafik penjualan 7 hari, produk terlaris
-  - CRUD Produk: nama, harga, stok, upload multi-foto, varian warna & ukuran dengan stok per kombinasi, SEO, status aktif/flash sale/new arrival
-  - CRUD Kategori (dengan upload foto)
-  - CRUD Banner (hero & promo)
-  - CRUD Voucher (persen/nominal, min. pembelian, limit pemakaian)
-  - Manajemen Order: filter status, detail order, update status, input nomor resi, cetak invoice
-  - **Verifikasi Pembayaran**: lihat bukti transfer/QRIS yang diupload user, terima/tolak — otomatis mengubah status order
-  - Daftar Customer & moderasi Review
-  - **Pengaturan Toko**: nama brand (bisa diganti kapan saja tanpa redeploy), logo, favicon, kontak, sosial media, rekening bank, e-wallet, upload QRIS
+Yang **belum** dibangun (opsional, tidak menghalangi operasional toko):
 
-Yang **belum** dibangun (lanjutan pengembangan opsional):
+- ⬜ Notifikasi email otomatis (saat ini notifikasi hanya muncul in-app di
+  menu Akun > Notifikasi)
+- ⬜ Ikon PWA (192x192, 512x512) — tinggal taruh file PNG di `public/icons/`,
+  `manifest.json` sudah menunjuk ke path tersebut
 
-- ⬜ Halaman login/register untuk customer (opsional, karena checkout tetap guest-friendly)
-- ⬜ Notifikasi email otomatis (status pesanan, pembayaran diterima, dikirim)
-- ⬜ Ikon PWA (192x192, 512x512) — tinggal taruh file PNG di `public/icons/`
-- ⬜ Halaman statis: Tentang, Kontak, FAQ, Kebijakan Privasi, Syarat Ketentuan
-
-> Tanpa bagian di atas, toko **sudah bisa dioperasikan penuh**: admin bisa isi
-> produk, atur nama brand, kelola banner/voucher, dan proses order dari masuk
-> sampai selesai.
-
-> Beri tahu saya bagian mana yang ingin dilanjutkan dulu — saya bangun modul
-> demi modul agar setiap bagian benar-benar teruji jalan, bukan sekadar stub.
+> Tanpa dua bagian di atas, toko **sudah bisa dioperasikan penuh dari ujung
+> ke ujung**: admin isi produk & atur toko, customer belanja (guest atau
+> login), checkout, bayar, admin verifikasi, kirim, customer konfirmasi
+> terima, kasih ulasan, atau ajukan retur kalau ada masalah.
 
 ## Catatan Arsitektur Cart/Wishlist/Checkout
 
-- Pengunjung (guest) mendapat `session_id` unik yang disimpan di `localStorage`
-  browser (lihat `getGuestSessionId()` di `src/lib/utils.ts`), dikirim lewat
-  header `x-session-id` di setiap request `apiFetch()`.
-- Semua API cart/wishlist/order menggunakan **service role client** di server
-  (bypass RLS) tapi tetap memfilter berdasarkan `session_id` atau `user_id`
-  yang sah, sehingga guest checkout tetap aman tanpa perlu akun.
-- Saat checkout, **harga dan stok selalu diambil ulang dari database di
-  server** (`/api/orders`), bukan dari data yang dikirim client — mencegah
-  manipulasi harga dari sisi browser.
+- Pengunjung (guest) mendapat `session_id` unik yang disimpan di
+  `localStorage` browser (lihat `getGuestSessionId()` di `src/lib/utils.ts`),
+  dikirim lewat header `x-session-id` di setiap request `apiFetch()`.
+- Semua API cart/wishlist/order menggunakan **service role client** di
+  server (bypass RLS) tapi tetap memfilter berdasarkan `session_id` atau
+  `user_id` yang sah, sehingga guest checkout tetap aman tanpa perlu akun.
+- Saat checkout, kalau user login dan punya alamat tersimpan, form alamat
+  otomatis terisi dari alamat utama (`is_default`) — lihat effect kedua di
+  `src/app/checkout/page.tsx`. Fallback tetap ke pengisian manual untuk
+  guest atau kalau belum punya alamat tersimpan.
+- **Harga, stok, dan diskon voucher selalu dihitung ulang dari database di
+  server** (`create_order_atomic`, migration `0005_atomic_checkout.sql` +
+  perbaikan di `0013_perbaikan_bug_audit.sql`), bukan dari data yang
+  dikirim client — mencegah manipulasi harga dari sisi browser. Idempotency
+  key mencegah order ganda dari double-klik atau retry.
 
 ## Cara Menjalankan
 
@@ -73,26 +133,48 @@ npm install
 
 ### 2. Setup Supabase
 
-1. Buat project baru di [supabase.com](https://supabase.com)
-2. Buka **SQL Editor**, jalankan file di `supabase/migrations/` **berurutan**:
-   - `0001_init_schema.sql`
-   - `0002_row_level_security.sql`
-   - `0003_storage_buckets.sql`
-   - `0004_seed_data.sql`
-   - `0005_atomic_checkout.sql`
-   - `0005_atomic_operations.sql`
-   - `0006_data_integrity_constraints.sql`
-   - `0007_admin_roles.sql`
-3. Buat akun admin pertama (super admin):
-   - Buka **Authentication > Users**, tambah user baru (email + password)
-   - Jalankan SQL ini di SQL Editor (ganti `USER_ID` dan `EMAIL` sesuai user yang baru dibuat):
-     ```sql
-     insert into admins (id, full_name, email, role)
-     values ('USER_ID', 'Super Admin', 'EMAIL', 'super_admin');
-     ```
-   - Setelah itu, admin lain bisa ditambahkan langsung dari panel
-     **Admin > Kelola Admin** (menu ini hanya muncul untuk super admin) —
-     tidak perlu lagi lewat SQL Editor.
+**Project baru / kosong (fresh setup) — paling mudah:**
+
+Jalankan satu file `supabase/schema-lengkap-fashion-store.sql` (gabungan
+seluruh migration 0001–0014) di **SQL Editor**. Selesai dalam satu kali Run.
+
+**Project yang sudah berjalan (update bertahap):**
+
+Jalankan file di `supabase/migrations/` **berurutan sesuai nomor**, mulai
+dari migration terakhir yang belum pernah dijalankan:
+
+```
+0001_init_schema.sql
+0002_row_level_security.sql
+0003_storage_buckets.sql
+0004_seed_data.sql
+0005_atomic_checkout.sql
+0005_atomic_operations.sql
+0006_data_integrity_constraints.sql
+0007_admin_roles.sql
+0008_fix_payment_method_enum_cast.sql
+0009_confirm_receipt_and_reviews.sql
+0010_sync_product_rating_stats.sql
+0011_auto_notifications.sql
+0012_konten_legal_dan_faq.sql
+0013_perbaikan_bug_audit.sql
+0014_fitur_retur_refund.sql
+```
+
+> Jangan pernah menjalankan file gabungan (`schema-lengkap-fashion-store.sql`)
+> di database yang sudah berisi data produksi — dia untuk setup awal saja.
+
+Buat akun admin pertama (super admin):
+
+1. Buka **Authentication > Users**, tambah user baru (email + password)
+2. Jalankan SQL ini di SQL Editor (ganti `USER_ID` dan `EMAIL`):
+   ```sql
+   insert into admins (id, full_name, email, role)
+   values ('USER_ID', 'Super Admin', 'EMAIL', 'super_admin');
+   ```
+3. Setelah itu, admin lain bisa ditambahkan langsung dari panel
+   **Admin > Kelola Admin** (menu ini hanya muncul untuk super admin) —
+   tidak perlu lagi lewat SQL Editor.
 
 ### 3. Environment Variables
 
@@ -111,47 +193,67 @@ npm run dev
 
 Buka [http://localhost:3000](http://localhost:3000)
 
+### 5. Cek tipe sebelum push (opsional tapi disarankan)
+
+```bash
+npm run type-check
+```
+
 ## Deploy ke Vercel
 
 1. Push project ini ke GitHub
 2. Import repo di [vercel.com/new](https://vercel.com/new)
 3. Masukkan environment variables yang sama seperti `.env.local`
-4. Deploy
+4. Deploy — setiap push ke branch `main` otomatis trigger redeploy
+
+Checklist lengkap sebelum & sesudah deploy ada di `DEPLOYMENT_CHECKLIST.md`.
 
 ## Struktur Folder
 
 ```
 src/
-  app/                # Routing Next.js App Router
+  app/
+    admin/            # Panel admin (produk, order, retur, pengaturan, dst)
+    akun/              # Halaman akun customer (login, alamat, pesanan, retur, dst)
+    api/               # API routes (cart, orders, shipping, wishlist, admin, settings)
+    cart/ checkout/ produk/ invoice/ pembayaran/ wishlist/  # Alur belanja
   components/
+    account/          # Komponen halaman akun (address-manager, return-form, dst)
+    admin/            # Komponen panel admin
     layout/           # Header, bottom nav
-    product/          # Product card, gallery, dsb
-    ui/               # Komponen dasar (button, input, dst — Shadcn style)
+    product/          # Product card, gallery, filter, countdown flash sale
   lib/
     supabase/         # Client & server Supabase client
     shipping.ts       # Modul kalkulasi ongkir (RajaOngkir-ready)
-    utils.ts          # Helper umum (format harga, slug, dsb)
+    regions.ts        # Data provinsi/kota
+    utils.ts          # Helper umum (format harga, slug, session guest, dst)
   types/
     database.ts       # Tipe data sesuai schema Supabase
 supabase/
-  migrations/         # SQL schema, RLS, storage, seed data
+  migrations/         # SQL schema, RLS, storage, seed data — bernomor urut
+  schema-lengkap-fashion-store.sql  # Gabungan semua migration, untuk setup awal
 ```
 
 ## Keamanan
 
-- **Row Level Security** aktif di semua tabel — akses publik hanya baca data
-  katalog, sedangkan data pribadi (cart, order, address) dibatasi per user via `auth.uid()`.
-- **Service role key** hanya dipakai di server (API routes), tidak pernah
-  diekspos ke client.
-- Guest checkout memakai kombinasi `session_id` (disimpan di localStorage
-  browser) dan API route server-side untuk membuat order tanpa perlu login.
-- Validasi input memakai `zod` di setiap form (akan ditambahkan bertahap
-  seiring pembangunan halaman checkout & admin).
+- **Row Level Security** aktif di semua tabel — akses publik hanya baca
+  data katalog, sedangkan data pribadi (cart, order, address, return)
+  dibatasi per user via `auth.uid()`.
+- **Service role key** hanya dipakai di server (API routes & middleware),
+  tidak pernah diekspos ke client.
+- Guest checkout memakai kombinasi `session_id` (localStorage browser) dan
+  API route server-side untuk membuat order tanpa perlu login.
+- Middleware memproteksi seluruh `/admin/*`, mengecek role di tabel
+  `admins` lewat service role client (tidak bergantung ke RLS), dan
+  membatasi `/admin/kelola-admin` khusus `super_admin`.
+- Konfirmasi "Pesanan Diterima" dibatasi ketat lewat RLS policy: hanya bisa
+  dari status `arrived` ke `completed`, dan hanya oleh pemilik order.
 
 ## Integrasi Ongkir
 
 Secara default sistem menghitung ongkir manual berbasis berat & zona kota
 (lihat `src/lib/shipping.ts`). Untuk data real-time JNE/J&T/dll, daftar akun
-di [RajaOngkir](https://rajaongkir.com) atau [Komerce](https://rajaongkir.komerce.id),
-lalu isi `RAJAONGKIR_API_KEY` di `.env.local` — sistem otomatis beralih
-memakai API asli tanpa perlu ubah kode lain.
+di [RajaOngkir](https://rajaongkir.com) atau
+[Komerce](https://rajaongkir.komerce.id), lalu isi `RAJAONGKIR_API_KEY` di
+`.env.local` — sistem otomatis beralih memakai API asli tanpa perlu ubah
+kode lain.
