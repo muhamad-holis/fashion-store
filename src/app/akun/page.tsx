@@ -63,20 +63,30 @@ export default async function AccountPage() {
     );
   }
 
-  const [{ data: profile }, { data: orders }, { count: wishlistCount }, { count: unreadNotifCount }] =
-    await Promise.all([
-      supabase.from("profiles").select("full_name, phone, avatar_url").eq("id", user.id).maybeSingle(),
-      supabase.from("orders").select("status").eq("user_id", user.id),
-      supabase
-        .from("wishlist_items")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
-      supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("is_read", false),
-    ]);
+  const [
+    { data: profile },
+    { data: orders },
+    { count: wishlistCount },
+    { count: unreadNotifCount },
+    { count: pendingReturnsCount },
+  ] = await Promise.all([
+    supabase.from("profiles").select("full_name, phone, avatar_url").eq("id", user.id).maybeSingle(),
+    supabase.from("orders").select("status").eq("user_id", user.id),
+    supabase
+      .from("wishlist_items")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false),
+    supabase
+      .from("returns")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "pending"),
+  ]);
 
   const counts = countByStatus((orders ?? []).map((o) => o.status as OrderStatus));
   const displayName = profile?.full_name || user.email?.split("@")[0] || "Pengguna";
@@ -91,7 +101,7 @@ export default async function AccountPage() {
         avatarUrl={profile?.avatar_url}
       />
 
-      <OrderStatusGrid counts={counts} />
+      <OrderStatusGrid counts={counts} returnsCount={pendingReturnsCount ?? 0} />
 
       <Reveal delay={0.1}>
         <TrackOrderCard />

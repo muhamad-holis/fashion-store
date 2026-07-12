@@ -19,10 +19,6 @@ export function OrderCardActions({
   const supabase = createClient();
   const [confirming, setConfirming] = useState(false);
 
-  function notBuiltYet(label: string) {
-    toast("Fitur ini akan segera hadir", { description: `${label} sedang kami siapkan.` });
-  }
-
   async function handleConfirmReceived() {
     setConfirming(true);
     // Sebelumnya ini raw UPDATE ke tabel orders lewat RLS policy - sekarang
@@ -83,21 +79,26 @@ export function OrderCardActions({
       )}
 
       {status === "completed" && (
-        <Link
-          href={`/akun/pesanan/${orderNumber}/ulasan`}
-          className="ripple rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background transition active:scale-95"
-        >
-          Beri Ulasan
-        </Link>
+        <>
+          <Link
+            href={`/akun/pesanan/${orderNumber}/ulasan`}
+            className="ripple rounded-full bg-foreground px-4 py-2 text-xs font-semibold text-background transition active:scale-95"
+          >
+            Beri Ulasan
+          </Link>
+          <Link
+            href={`/akun/pesanan/${orderNumber}/retur`}
+            className="ripple rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-secondary"
+          >
+            Ajukan Retur
+          </Link>
+        </>
       )}
 
       {status === "cancelled" && (
-        <button
-          onClick={() => notBuiltYet("Ajukan Retur")}
-          className="ripple rounded-full border border-border px-4 py-2 text-xs font-medium transition hover:bg-secondary"
-        >
-          Ajukan Retur
-        </button>
+        <span className="rounded-full border border-border px-4 py-2 text-xs text-muted-foreground">
+          Pesanan dibatalkan
+        </span>
       )}
     </div>
   );

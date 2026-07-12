@@ -21,6 +21,7 @@ import {
   X,
   ShieldCheck,
   HelpCircle,
+  RotateCcw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -52,6 +53,7 @@ const menuGroups = [
     items: [
       { href: "/admin/customer", label: "Customer", icon: Users },
       { href: "/admin/review", label: "Review", icon: Star },
+      { href: "/admin/retur", label: "Retur & Refund", icon: RotateCcw },
       { href: "/admin/faq", label: "FAQ", icon: HelpCircle },
       { href: "/admin/pengaturan", label: "Pengaturan", icon: Settings },
     ],

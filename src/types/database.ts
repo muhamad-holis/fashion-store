@@ -19,6 +19,14 @@ export type PaymentStatus = "pending" | "approved" | "rejected";
 export type UserRole = "customer" | "admin" | "super_admin";
 export type NotificationChannel = "toast" | "email";
 export type DiscountType = "percent" | "fixed";
+export type ReturnStatus = "pending" | "approved" | "rejected" | "refunded";
+export type ReturnReason =
+  | "wrong_item"
+  | "damaged"
+  | "not_as_described"
+  | "wrong_size"
+  | "changed_mind"
+  | "other";
 
 export type Product = {
   id: string;
@@ -294,6 +302,21 @@ export type Notification = {
   created_at: string;
 }
 
+export type Return = {
+  id: string;
+  order_id: string;
+  order_item_id: string | null;
+  user_id: string | null;
+  reason: ReturnReason;
+  description: string | null;
+  images: string[];
+  status: ReturnStatus;
+  admin_note: string | null;
+  refund_amount: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type Faq = {
   id: string;
   question: string;
@@ -398,6 +421,7 @@ export type Database = {
       notifications: TableDef<Notification>;
       activity_logs: TableDef<ActivityLog>;
       faqs: TableDef<Faq>;
+      returns: TableDef<Return>;
       order_number_counters: TableDef<{ day: string; seq: number }>;
     };
     Views: Record<string, never>;
