@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ProductCard } from "@/components/product/product-card";
 import { FlashSaleCountdown } from "@/components/product/flash-sale-countdown";
 import { TrustBadges } from "@/components/home/trust-badges";
+import { HeroBannerCarousel } from "@/components/home/hero-banner-carousel";
 import type { Product, Category } from "@/types/database";
 
 export const revalidate = 60;
@@ -67,22 +68,7 @@ export default async function HomePage() {
       {/* HERO BANNER */}
       <section className="container">
         <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl bg-secondary md:aspect-[21/9]">
-          {banners[0] ? (
-            <Image
-              src={banners[0].image_url}
-              alt={banners[0].title ?? "Promo"}
-              fill
-              priority
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-              <p className="text-2xl font-semibold tracking-tight">New Season Drop</p>
-              <p className="text-sm text-muted-foreground">
-                Tambahkan banner promo lewat Admin &gt; Banner
-              </p>
-            </div>
-          )}
+          <HeroBannerCarousel banners={banners} intervalMs={2000} />
         </div>
       </section>
 
