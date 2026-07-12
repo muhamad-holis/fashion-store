@@ -22,7 +22,25 @@ export const metadata: Metadata = {
   },
   description:
     "Belanja fashion pria, wanita, dan aksesoris terbaru dengan kualitas premium dan pengalaman belanja secepat TikTok Shop.",
-  manifest: "/manifest.json",
+  // Tidak perlu set `manifest` manual di sini - src/app/manifest.ts (file
+  // convention Next.js) otomatis generate route /manifest.webmanifest DAN
+  // otomatis nge-link-nya sendiri di <head>.
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  // appleWebApp: dibutuhkan supaya "Add to Home Screen" di Safari/iOS
+  // membuka app dalam mode standalone (tanpa address bar Safari), bukan
+  // cuma jadi bookmark biasa. manifest.json/web app manifest sendirian
+  // TIDAK cukup untuk iOS - Safari butuh meta tag ini secara terpisah.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: siteName,
+  },
   openGraph: {
     type: "website",
     locale: "id_ID",
@@ -75,6 +93,39 @@ const themeInitScript = `
 })();
 `;
 
+// Splash screen HANYA muncul sekali per sesi browser/tab (pertama kali app
+// dibuka, termasuk pas dibuka dari icon PWA di home screen) - bukan setiap
+// kali pindah halaman. Cara kerjanya:
+// 1. Elemen #app-splash SELALU ada di HTML awal (dirender dari server),
+//    jadi langsung terlihat sejak detik pertama, tanpa nunggu JS/React.
+// 2. Script vanilla di bawah ini jalan SEKALI saat dokumen pertama kali
+//    dimuat penuh (hard refresh / buka app baru) - script ini TIDAK
+//    ikut jalan lagi saat pindah halaman lewat Link (Next.js App Router
+//    berpindah halaman tanpa reload dokumen, jadi <script> ini otomatis
+//    tidak pernah dieksekusi ulang selama tab masih sama).
+// 3. sessionStorage dipakai sebagai penanda "sudah pernah tampil di sesi
+//    ini" - kalau tab ditutup lalu app dibuka lagi (sesi baru), splash
+//    akan muncul lagi sekali; tapi selama masih di sesi/tab yang sama,
+//    tidak akan muncul dobel.
+const splashInitScript = `
+(function () {
+  try {
+    var el = document.getElementById('app-splash');
+    if (!el) return;
+    if (sessionStorage.getItem('emyu_splash_shown')) {
+      el.style.display = 'none';
+      return;
+    }
+    sessionStorage.setItem('emyu_splash_shown', '1');
+    setTimeout(function () {
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
+      setTimeout(function () { el.style.display = 'none'; }, 300);
+    }, 650);
+  } catch (e) {}
+})();
+`;
+
 export default async function RootLayout({
   children,
 }: {
@@ -88,6 +139,23 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-dvh bg-background font-sans">
+        {/* Splash screen - lihat penjelasan splashInitScript di atas soal
+            kenapa ini cuma muncul sekali per sesi, bukan tiap pindah
+            halaman. suppressHydrationWarning karena elemen ini sengaja
+            dimanipulasi vanilla JS di luar React (persis seperti pola
+            themeInitScript di <head>). */}
+        <div
+          id="app-splash"
+          suppressHydrationWarning
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-5 bg-[#0d0d0d] transition-opacity duration-300"
+        >
+          <span className="text-xl font-semibold tracking-tight text-white">{storeName}</span>
+          <div className="h-[3px] w-28 overflow-hidden rounded-full bg-white/15">
+            <div className="splash-bar h-full w-2/5 rounded-full bg-white" />
+          </div>
+        </div>
+        <script dangerouslySetInnerHTML={{ __html: splashInitScript }} />
+
         <ThemeProvider>
           <SiteHeader storeName={storeName} />
           <main className="pb-20 md:pb-0">{children}</main>

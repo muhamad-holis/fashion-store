@@ -144,6 +144,21 @@
   }
 }
 
+/* Garis loading splash screen - gerakan cepat bolak-balik menyapu track-nya.
+   Dipakai di #app-splash (lihat src/app/layout.tsx) yang cuma tampil sekali
+   di pembukaan pertama aplikasi. */
+@keyframes splash-sweep {
+  0% {
+    transform: translateX(-150%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+.splash-bar {
+  animation: splash-sweep 0.55s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
