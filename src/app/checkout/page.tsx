@@ -44,6 +44,9 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [addressPickerOpen, setAddressPickerOpen] = useState(false);
+  // "summary"  -> alamat sudah diset, tampilkan kartu ringkas ala Shopee/TikTok Shop
+  // "manual"   -> tampilkan form isian penuh (guest, atau user pilih isi baru)
+  const [addressMode, setAddressMode] = useState<"summary" | "manual">("manual");
 
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
@@ -84,9 +87,12 @@ export default function CheckoutPage() {
     })();
   }, []);
 
-  // Mengisi form alamat dari salah satu alamat tersimpan di akun.
+  // Mengisi form alamat dari salah satu alamat tersimpan di akun, lalu
+  // otomatis pindah ke tampilan ringkasan (bukan form isian) - persis pola
+  // Shopee/TikTok Shop: kalau alamat sudah diset, form disembunyikan.
   function applyAddress(addr: Address) {
     setSelectedAddressId(addr.id);
+    setAddressMode("summary");
     setForm((prev) => ({
       ...prev,
       recipient_name: addr.recipient_name,
@@ -333,48 +339,74 @@ export default function CheckoutPage() {
       {/* ALAMAT */}
       <section className="rounded-xl border border-border p-4">
         <h2 className="mb-3 text-sm font-semibold">Alamat Pengiriman</h2>
-        {savedAddresses.length > 0 && (
-          <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-secondary/30 px-3 py-2 text-xs">
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              Alamat otomatis dari akun kamu
-            </span>
-            {savedAddresses.length > 1 && (
+
+        {addressMode === "summary" && selectedAddressId ? (
+          // Alamat sudah diset - tampilkan ringkasan saja, form disembunyikan.
+          <div className="rounded-lg border border-border bg-secondary/30 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium">{form.recipient_name}</p>
+                  <span className="text-xs text-muted-foreground">{form.phone}</span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {form.full_address}, {form.subdistrict}, {form.district}, {form.city}, {form.province}{" "}
+                  {form.postal_code}
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setAddressPickerOpen(true)}
-                className="shrink-0 font-medium text-foreground underline underline-offset-2"
+                className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition hover:bg-secondary"
               >
-                Ganti Alamat
+                Ubah
               </button>
-            )}
+            </div>
           </div>
+        ) : (
+          <>
+            {savedAddresses.length > 0 && (
+              <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-secondary/30 px-3 py-2 text-xs">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  Mengisi alamat baru secara manual
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAddressPickerOpen(true)}
+                  className="shrink-0 font-medium text-foreground underline underline-offset-2"
+                >
+                  Pakai Alamat Tersimpan
+                </button>
+              </div>
+            )}
+            <div className="grid gap-3 md:grid-cols-2">
+              <Input label="Nama Penerima" value={form.recipient_name} onChange={(v) => setForm({ ...form, recipient_name: v })} />
+              <Input label="Nomor HP" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+              <Input label="Email (opsional)" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+              <Select
+                label="Provinsi"
+                value={form.province}
+                options={PROVINCES}
+                onChange={(v) => setForm({ ...form, province: v, city: "" })}
+              />
+              <Select label="Kota/Kabupaten" value={form.city} options={cities} onChange={(v) => setForm({ ...form, city: v })} />
+              <Input label="Kecamatan" value={form.district} onChange={(v) => setForm({ ...form, district: v })} />
+              <Input label="Kelurahan" value={form.subdistrict} onChange={(v) => setForm({ ...form, subdistrict: v })} />
+              <Input label="Kode Pos" value={form.postal_code} onChange={(v) => setForm({ ...form, postal_code: v })} />
+            </div>
+            <div className="mt-3">
+              <label className="mb-1 block text-xs text-muted-foreground">Alamat Lengkap</label>
+              <textarea
+                value={form.full_address}
+                onChange={(e) => setForm({ ...form, full_address: e.target.value })}
+                rows={3}
+                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none"
+                placeholder="Nama jalan, nomor rumah, RT/RW, patokan..."
+              />
+            </div>
+          </>
         )}
-        <div className="grid gap-3 md:grid-cols-2">
-          <Input label="Nama Penerima" value={form.recipient_name} onChange={(v) => setForm({ ...form, recipient_name: v })} />
-          <Input label="Nomor HP" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
-          <Input label="Email (opsional)" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
-          <Select
-            label="Provinsi"
-            value={form.province}
-            options={PROVINCES}
-            onChange={(v) => setForm({ ...form, province: v, city: "" })}
-          />
-          <Select label="Kota/Kabupaten" value={form.city} options={cities} onChange={(v) => setForm({ ...form, city: v })} />
-          <Input label="Kecamatan" value={form.district} onChange={(v) => setForm({ ...form, district: v })} />
-          <Input label="Kelurahan" value={form.subdistrict} onChange={(v) => setForm({ ...form, subdistrict: v })} />
-          <Input label="Kode Pos" value={form.postal_code} onChange={(v) => setForm({ ...form, postal_code: v })} />
-        </div>
-        <div className="mt-3">
-          <label className="mb-1 block text-xs text-muted-foreground">Alamat Lengkap</label>
-          <textarea
-            value={form.full_address}
-            onChange={(e) => setForm({ ...form, full_address: e.target.value })}
-            rows={3}
-            className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none"
-            placeholder="Nama jalan, nomor rumah, RT/RW, patokan..."
-          />
-        </div>
       </section>
 
       {/* ONGKIR */}
@@ -529,6 +561,17 @@ export default function CheckoutPage() {
                 );
               })}
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setAddressMode("manual");
+                setSelectedAddressId(null);
+                setAddressPickerOpen(false);
+              }}
+              className="mt-3 w-full rounded-lg border border-dashed border-border px-3 py-2.5 text-center text-xs font-medium text-muted-foreground transition hover:bg-secondary"
+            >
+              Isi Alamat Baru Secara Manual
+            </button>
             <Link
               href="/akun/alamat"
               className="mt-3 block text-center text-xs font-medium text-muted-foreground underline underline-offset-2"
