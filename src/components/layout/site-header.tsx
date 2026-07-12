@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { Search, Heart, ShoppingBag, Home, Grid2x2, UserRound } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, Heart, ShoppingBag, Home, Grid2x2, UserRound, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { createClient } from "@/lib/supabase/client";
 
 // Link navigasi utama yang muncul sebagai teks di header MULAI breakpoint
 // md - ini pengganti bottom nav (yang disembunyikan lewat `md:hidden` di
@@ -18,7 +19,35 @@ const DESKTOP_NAV_LINKS = [
 
 export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string }) {
   const [query, setQuery] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
+
+  // Ambil jumlah notifikasi belum dibaca untuk badge di ikon lonceng.
+  // Di-refetch tiap pindah halaman (dependency [pathname]) supaya badge
+  // ikut update setelah user buka halaman notifikasi dan menandainya
+  // terbaca, tanpa perlu realtime subscription yang lebih berat.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        if (active) setUnreadCount(0);
+        return;
+      }
+      const { count } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+      if (active) setUnreadCount(count ?? 0);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
 
   if (pathname.startsWith("/admin") || pathname.startsWith("/pembayaran")) return null;
 
@@ -83,7 +112,26 @@ export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string
             <Search className="h-5 w-5" />
           </Link>
           <ThemeToggle />
-          <Link href="/wishlist" className="rounded-full p-2.5 transition hover:bg-secondary">
+          {/* Notifikasi - tampil di semua ukuran layar, karena sebelum ini
+              notifikasi tidak punya akses cepat sama sekali baik di HP
+              maupun desktop (cuma nyempil di dalam menu Akun). */}
+          <Link
+            href="/akun/notifikasi"
+            className="relative rounded-full p-2.5 transition hover:bg-secondary"
+          >
+            <Bell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+            )}
+          </Link>
+          {/* Wishlist digeser jadi khusus md+ - di HP sudah ada tab
+              tersendiri di bottom nav, jadi ikon ini di header cuma perlu
+              tampil di desktop/tablet (tempat bottom nav disembunyikan),
+              supaya header HP tidak terlalu penuh ikon. */}
+          <Link
+            href="/wishlist"
+            className="hidden rounded-full p-2.5 transition hover:bg-secondary md:inline-flex"
+          >
             <Heart className="h-5 w-5" />
           </Link>
           <Link href="/cart" className="rounded-full p-2.5 transition hover:bg-secondary">
