@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Loader2, Ticket, X } from "lucide-react";
+import { Loader2, MapPin, Ticket, X } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { createClient } from "@/lib/supabase/client";
 import { PROVINCES, CITIES_BY_PROVINCE } from "@/lib/regions";
-import type { CartItem, Coupon, StoreSettings } from "@/types/database";
+import type { Address, CartItem, Coupon, StoreSettings } from "@/types/database";
 import type { ShippingOption } from "@/lib/shipping";
 
 type PaymentMethod = "bank_transfer" | "ewallet" | "qris";
@@ -36,6 +37,13 @@ export default function CheckoutPage() {
     postal_code: "",
     full_address: "",
   });
+
+  // Alamat tersimpan dari menu Akun > Alamat - dipakai untuk auto-isi form
+  // alamat pengiriman saat checkout dibuka, supaya user tidak perlu ketik
+  // ulang alamat yang sudah pernah disimpan.
+  const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [addressPickerOpen, setAddressPickerOpen] = useState(false);
 
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
@@ -74,6 +82,62 @@ export default function CheckoutPage() {
         setLoading(false);
       }
     })();
+  }, []);
+
+  // Mengisi form alamat dari salah satu alamat tersimpan di akun.
+  function applyAddress(addr: Address) {
+    setSelectedAddressId(addr.id);
+    setForm((prev) => ({
+      ...prev,
+      recipient_name: addr.recipient_name,
+      phone: addr.phone,
+      province: addr.province,
+      city: addr.city,
+      district: addr.district,
+      subdistrict: addr.subdistrict,
+      postal_code: addr.postal_code,
+      full_address: addr.full_address,
+    }));
+    // Kota tujuan berubah -> opsi ongkir yang lama (kalau ada) sudah tidak
+    // relevan lagi, jadi direset supaya user cek ongkir ulang.
+    setShippingOptions([]);
+    setSelectedShipping(null);
+  }
+
+  // Ambil alamat tersimpan milik user (kalau sudah login) dan otomatis
+  // isi form dengan alamat utama (is_default). Kalau belum ada yang
+  // dijadikan utama, pakai alamat pertama. Dijalankan terpisah dari effect
+  // cart/settings supaya gagal ambil alamat tidak mengganggu proses lain,
+  // dan user tetap bisa isi alamat manual seperti biasa (guest checkout).
+  useEffect(() => {
+    (async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data, error } = await supabase
+          .from("addresses")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("is_default", { ascending: false })
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+
+        const list = (data as Address[]) ?? [];
+        setSavedAddresses(list);
+
+        const defaultAddr = list.find((a) => a.is_default) ?? list[0];
+        if (defaultAddr) {
+          applyAddress(defaultAddr);
+        }
+      } catch (e: any) {
+        // Diam-diam saja kalau gagal - checkout tetap jalan, user isi manual.
+        console.error("Gagal memuat alamat tersimpan:", e?.message);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const subtotal = items.reduce((sum, item) => {
@@ -269,6 +333,23 @@ export default function CheckoutPage() {
       {/* ALAMAT */}
       <section className="rounded-xl border border-border p-4">
         <h2 className="mb-3 text-sm font-semibold">Alamat Pengiriman</h2>
+        {savedAddresses.length > 0 && (
+          <div className="mb-3 flex items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-secondary/30 px-3 py-2 text-xs">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              Alamat otomatis dari akun kamu
+            </span>
+            {savedAddresses.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setAddressPickerOpen(true)}
+                className="shrink-0 font-medium text-foreground underline underline-offset-2"
+              >
+                Ganti Alamat
+              </button>
+            )}
+          </div>
+        )}
         <div className="grid gap-3 md:grid-cols-2">
           <Input label="Nama Penerima" value={form.recipient_name} onChange={(v) => setForm({ ...form, recipient_name: v })} />
           <Input label="Nomor HP" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
@@ -404,6 +485,59 @@ export default function CheckoutPage() {
           </svg>
         </button>
       </section>
+
+      {/* Bottom sheet pilihan alamat tersimpan */}
+      {addressPickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+          onClick={() => setAddressPickerOpen(false)}
+        >
+          <div
+            className="max-h-[75vh] w-full max-w-[480px] overflow-y-auto rounded-t-2xl bg-background p-4 pb-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
+            <h3 className="mb-3 text-sm font-semibold">Pilih Alamat Tersimpan</h3>
+            <div className="space-y-1.5">
+              {savedAddresses.map((addr) => {
+                const active = selectedAddressId === addr.id;
+                return (
+                  <button
+                    key={addr.id}
+                    type="button"
+                    onClick={() => {
+                      applyAddress(addr);
+                      setAddressPickerOpen(false);
+                    }}
+                    className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm transition ${
+                      active ? "border-foreground bg-secondary/50" : "border-border"
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="font-medium">{addr.recipient_name}</span>
+                      {addr.is_default && (
+                        <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium">
+                          Utama
+                        </span>
+                      )}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {addr.full_address}, {addr.subdistrict}, {addr.district}, {addr.city}, {addr.province}{" "}
+                      {addr.postal_code}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <Link
+              href="/akun/alamat"
+              className="mt-3 block text-center text-xs font-medium text-muted-foreground underline underline-offset-2"
+            >
+              Kelola alamat di halaman akun
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Bottom sheet pilihan pembayaran */}
       {paymentSheetOpen && (
