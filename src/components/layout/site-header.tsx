@@ -3,9 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Search, Heart, ShoppingBag, Menu } from "lucide-react";
+import { Search, Heart, ShoppingBag, Home, Grid2x2, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+
+// Link navigasi utama yang muncul sebagai teks di header MULAI breakpoint
+// md - ini pengganti bottom nav (yang disembunyikan lewat `md:hidden` di
+// BottomNav) untuk layar tablet/desktop. Tanpa ini, di layar lebar tidak
+// ada cara untuk pindah ke halaman Kategori sama sekali.
+const DESKTOP_NAV_LINKS = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/produk", label: "Kategori", icon: Grid2x2 },
+];
 
 export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string }) {
   const [query, setQuery] = useState("");
@@ -25,6 +34,27 @@ export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string
         <Link href="/" className="shrink-0 text-lg font-semibold tracking-tight">
           {storeName}
         </Link>
+
+        {/* Nav teks Home/Kategori - hanya tampil mulai md, di HP navigasi
+            yang sama sudah tersedia lewat bottom nav. */}
+        <nav className="hidden shrink-0 items-center gap-1 md:flex">
+          {DESKTOP_NAV_LINKS.map(({ href, label, icon: Icon }) => {
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-3 py-2 text-sm transition hover:bg-secondary",
+                  active ? "font-medium text-foreground" : "text-muted-foreground"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
 
         {!hideSearch && (
           <form
@@ -58,6 +88,18 @@ export function SiteHeader({ storeName = "Fashion Store" }: { storeName?: string
           </Link>
           <Link href="/cart" className="rounded-full p-2.5 transition hover:bg-secondary">
             <ShoppingBag className="h-5 w-5" />
+          </Link>
+          {/* Akun hanya ditambahkan di sini untuk md+ - di HP sudah ada
+              lewat bottom nav, jadi tidak perlu dobel. Tanpa ini, halaman
+              Akun sama sekali tidak bisa dijangkau dari layar lebar. */}
+          <Link
+            href="/akun"
+            className={cn(
+              "hidden rounded-full p-2.5 transition hover:bg-secondary md:inline-flex",
+              pathname.startsWith("/akun") ? "text-foreground" : "text-muted-foreground"
+            )}
+          >
+            <UserRound className="h-5 w-5" />
           </Link>
         </div>
       </div>

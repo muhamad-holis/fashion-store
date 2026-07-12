@@ -105,11 +105,13 @@ export default async function AccountPage() {
       </Reveal>
 
       <Reveal delay={0.15}>
-        <MenuList
-          wishlistCount={wishlistCount ?? 0}
-          unreadNotifCount={unreadNotifCount ?? 0}
-          whatsapp={settings?.whatsapp}
-        />
+        <div className="md:hidden">
+          <MenuList
+            wishlistCount={wishlistCount ?? 0}
+            unreadNotifCount={unreadNotifCount ?? 0}
+            whatsapp={settings?.whatsapp}
+          />
+        </div>
       </Reveal>
 
       <RecommendSection products={recommended} />
