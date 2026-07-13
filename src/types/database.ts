@@ -37,6 +37,7 @@ export type Product = {
   description: string | null;
   material_detail: string | null;
   size_guide: string | null;
+  size_chart_id: string | null;
   price: number;
   compare_at_price: number | null;
   discount_percent: number;
@@ -61,6 +62,19 @@ export type Product = {
   product_variants?: ProductVariant[];
   categories?: Category;
   reviews?: Review[];
+  size_charts?: SizeChart;
+}
+
+export type SizeChart = {
+  id: string;
+  name: string;
+  category_id: string | null;
+  measurement_unit: string;
+  columns: string[];
+  rows: { size: string; values: number[] }[];
+  how_to_measure: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export type ProductImage = {
@@ -428,6 +442,7 @@ export type Database = {
       activity_logs: TableDef<ActivityLog>;
       faqs: TableDef<Faq>;
       returns: TableDef<Return>;
+      size_charts: TableDef<SizeChart>;
       order_number_counters: TableDef<{ day: string; seq: number }>;
     };
     Views: Record<string, never>;

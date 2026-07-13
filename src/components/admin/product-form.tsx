@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Upload, X, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/utils";
-import type { Category, Color, Size } from "@/types/database";
+import type { Category, Color, Size, SizeChart } from "@/types/database";
 
 interface ImageItem {
   url: string;
@@ -27,6 +27,7 @@ export function ProductForm({ productId }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [colors, setColors] = useState<Color[]>([]);
   const [sizes, setSizes] = useState<Size[]>([]);
+  const [sizeCharts, setSizeCharts] = useState<SizeChart[]>([]);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -39,6 +40,7 @@ export function ProductForm({ productId }: Props) {
     description: "",
     material_detail: "",
     size_guide: "",
+    size_chart_id: "",
     price: "",
     compare_at_price: "",
     weight_grams: "500",
@@ -58,14 +60,16 @@ export function ProductForm({ productId }: Props) {
 
   useEffect(() => {
     (async () => {
-      const [{ data: cats }, { data: cols }, { data: szs }] = await Promise.all([
+      const [{ data: cats }, { data: cols }, { data: szs }, { data: charts }] = await Promise.all([
         supabase.from("categories").select("*").order("sort_order"),
         supabase.from("colors").select("*"),
         supabase.from("sizes").select("*").order("sort_order"),
+        supabase.from("size_charts").select("*").order("name"),
       ]);
       setCategories(cats ?? []);
       setColors(cols ?? []);
       setSizes(szs ?? []);
+      setSizeCharts(charts ?? []);
 
       if (productId) {
         const { data: product } = await supabase
@@ -83,6 +87,7 @@ export function ProductForm({ productId }: Props) {
             description: product.description ?? "",
             material_detail: product.material_detail ?? "",
             size_guide: product.size_guide ?? "",
+            size_chart_id: product.size_chart_id ?? "",
             price: String(product.price),
             compare_at_price: product.compare_at_price ? String(product.compare_at_price) : "",
             weight_grams: String(product.weight_grams),
@@ -196,6 +201,7 @@ export function ProductForm({ productId }: Props) {
         description: form.description || null,
         material_detail: form.material_detail || null,
         size_guide: form.size_guide || null,
+        size_chart_id: form.size_chart_id || null,
         price: Number(form.price),
         compare_at_price: form.compare_at_price ? Number(form.compare_at_price) : null,
         discount_percent:
@@ -324,6 +330,23 @@ export function ProductForm({ productId }: Props) {
             rows={2}
             className="input"
           />
+        </Field>
+        <Field label="Size Chart (tabel ukuran interaktif)">
+          <select
+            value={form.size_chart_id}
+            onChange={(e) => setForm({ ...form, size_chart_id: e.target.value })}
+            className="input"
+          >
+            <option value="">Tidak pakai size chart</option>
+            {sizeCharts.map((sc) => (
+              <option key={sc.id} value={sc.id}>
+                {sc.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Kelola daftar size chart di menu Size Chart pada sidebar.
+          </p>
         </Field>
       </Section>
 

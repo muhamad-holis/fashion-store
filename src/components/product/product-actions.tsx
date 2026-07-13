@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Heart, Share2, Link as LinkIcon, Minus, Plus } from "lucide-react";
+import { Heart, Share2, Link as LinkIcon, Minus, Plus, Ruler } from "lucide-react";
 import { formatRupiah, cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { useCartBadgeStore } from "@/lib/store/cart-badge";
+import { SizeChartModal } from "@/components/product/size-chart-modal";
 import type { Product, ProductVariant } from "@/types/database";
 
 export function ProductActions({ product }: { product: Product }) {
@@ -25,6 +26,7 @@ export function ProductActions({ product }: { product: Product }) {
   const [sizeId, setSizeId] = useState<string | undefined>(uniqueSizes[0]?.id);
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [showSizeChart, setShowSizeChart] = useState(false);
   const setCartCount = useCartBadgeStore((s) => s.setCartCount);
 
   const selectedVariant = variants.find(
@@ -117,7 +119,19 @@ export function ProductActions({ product }: { product: Product }) {
 
       {uniqueSizes.length > 0 && (
         <div>
-          <p className="mb-2 text-sm font-medium">Ukuran</p>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-medium">Ukuran</p>
+            {product.size_charts && (
+              <button
+                type="button"
+                onClick={() => setShowSizeChart(true)}
+                className="flex items-center gap-1 text-xs font-medium text-blue-600"
+              >
+                <Ruler className="h-3.5 w-3.5" />
+                Lihat Size Chart
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
             {uniqueSizes.map((s) => (
               <button
@@ -133,6 +147,10 @@ export function ProductActions({ product }: { product: Product }) {
             ))}
           </div>
         </div>
+      )}
+
+      {showSizeChart && product.size_charts && (
+        <SizeChartModal chart={product.size_charts} onClose={() => setShowSizeChart(false)} />
       )}
 
       <div className="flex items-center justify-between">
