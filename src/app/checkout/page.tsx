@@ -169,7 +169,19 @@ export default function CheckoutPage() {
     return Math.min(appliedCoupon.discount_value, subtotal);
   }, [appliedCoupon, subtotal]);
 
-  const grandTotal = Math.max(0, subtotal - discount) + (selectedShipping?.cost ?? 0);
+  // Biaya Layanan: persentase dari subtotal, berlaku untuk SEMUA metode
+  // pembayaran (termasuk COD). Ini HANYA preview di layar - nominal yang
+  // benar-benar dipakai & final selalu dihitung ULANG di server oleh
+  // create_order_atomic() (lihat migrations/0017_biaya_layanan.sql),
+  // jadi tidak bisa dimanipulasi dari client.
+  const serviceFee = useMemo(() => {
+    const percent = settings?.service_fee_percent ?? 0;
+    if (!percent) return 0;
+    return Math.round((subtotal * percent) / 100);
+  }, [settings, subtotal]);
+
+  const grandTotal =
+    Math.max(0, subtotal - discount) + serviceFee + (selectedShipping?.cost ?? 0);
 
   const cities = form.province ? CITIES_BY_PROVINCE[form.province] ?? [] : [];
 
@@ -780,6 +792,12 @@ export default function CheckoutPage() {
         <div className="space-y-1.5 text-muted-foreground">
           <Row label="Subtotal" value={formatRupiah(subtotal)} />
           {appliedCoupon && <Row label="Diskon Voucher" value={`- ${formatRupiah(discount)}`} />}
+          {serviceFee > 0 && (
+            <Row
+              label={`Biaya Layanan (${settings?.service_fee_percent}%)`}
+              value={formatRupiah(serviceFee)}
+            />
+          )}
           <Row label="Ongkir" value={selectedShipping ? formatRupiah(selectedShipping.cost) : "-"} />
           <Row label="Total Berat" value={`${(totalWeight / 1000).toFixed(1)} kg`} />
         </div>

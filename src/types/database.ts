@@ -175,6 +175,7 @@ export type Order = {
   shipping_eta: string | null;
   subtotal: number;
   discount_total: number;
+  service_fee: number;
   total_weight_grams: number;
   grand_total: number;
   coupon_code: string | null;
@@ -371,6 +372,7 @@ export type StoreSettings = {
   cod_areas: { district: string; subdistrict: string }[];
   cod_max_amount: number | null;
   cod_shipping_fee: number;
+  service_fee_percent: number;
   updated_at: string;
 }
 

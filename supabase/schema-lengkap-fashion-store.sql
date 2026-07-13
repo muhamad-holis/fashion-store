@@ -2511,3 +2511,17 @@ begin
   );
 end;
 $$ language plpgsql security definer;
+
+-- =========================================================
+-- 0017: Biaya Layanan (service fee) - lihat migrations/0017_biaya_layanan.sql
+-- =========================================================
+alter table settings
+  add column if not exists service_fee_percent numeric(5,2) not null default 0
+  check (service_fee_percent >= 0 and service_fee_percent <= 100);
+
+alter table orders
+  add column if not exists service_fee numeric(12,2) not null default 0;
+
+-- create_order_atomic() versi efektif terakhir ada di
+-- migrations/0017_biaya_layanan.sql (menambahkan perhitungan biaya
+-- layanan sebelum grand_total dan validasi batas COD).

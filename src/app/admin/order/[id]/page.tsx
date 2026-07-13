@@ -126,6 +126,12 @@ export default function AdminOrderDetailPage() {
             <span>Ongkir ({order.courier_code?.toUpperCase()} {order.courier_service})</span>
             <span>{formatRupiah(order.shipping_cost)}</span>
           </div>
+          {order.service_fee > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <span>Biaya Layanan</span>
+              <span>{formatRupiah(order.service_fee)}</span>
+            </div>
+          )}
           <div className="flex justify-between border-t border-border pt-1.5 font-semibold">
             <span>Grand Total</span>
             <span>{formatRupiah(order.grand_total)}</span>

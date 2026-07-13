@@ -14,6 +14,7 @@ import {
   Upload,
   X,
   Check,
+  Percent,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,10 @@ export default function AdminPaymentSettingsPage() {
   const [codShippingFee, setCodShippingFee] = useState<string>("0");
   const [codAreaDraft, setCodAreaDraft] = useState<CodArea>({ district: "", subdistrict: "" });
 
+  // Biaya Layanan: persentase dari subtotal, berlaku untuk SEMUA metode
+  // pembayaran (termasuk COD) - lihat migrations/0017_biaya_layanan.sql
+  const [serviceFeePercent, setServiceFeePercent] = useState<string>("0");
+
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draft, setDraft] = useState<BankAccount & EwalletAccount>({
     bank: "",
@@ -88,6 +93,7 @@ export default function AdminPaymentSettingsPage() {
       setCodAreas((data.cod_areas ?? []) as CodArea[]);
       setCodMaxAmount(data.cod_max_amount != null ? String(data.cod_max_amount) : "");
       setCodShippingFee(String(data.cod_shipping_fee ?? 0));
+      setServiceFeePercent(String(data.service_fee_percent ?? 0));
     }
     setLoading(false);
   }
@@ -105,6 +111,7 @@ export default function AdminPaymentSettingsPage() {
     cod_areas?: CodArea[];
     cod_max_amount?: number | null;
     cod_shipping_fee?: number;
+    service_fee_percent?: number;
   }) {
     setSaving(true);
     const { error } = await supabase.from("settings").update(next).eq("id", 1);
@@ -172,6 +179,16 @@ export default function AdminPaymentSettingsPage() {
     }
     const ok = await persist({ cod_max_amount: maxAmount, cod_shipping_fee: shippingFee });
     if (ok) toast.success("Pengaturan batas COD disimpan");
+  }
+
+  async function saveServiceFee() {
+    const percent = Number(serviceFeePercent);
+    if (isNaN(percent) || percent < 0 || percent > 100) {
+      toast.error("Persen biaya layanan harus di antara 0 - 100");
+      return;
+    }
+    const ok = await persist({ service_fee_percent: percent });
+    if (ok) toast.success("Biaya layanan disimpan");
   }
 
   function openAdd() {
@@ -308,6 +325,41 @@ export default function AdminPaymentSettingsPage() {
         <p className="text-sm text-muted-foreground">
           Kelola rekening bank, e-wallet, dan QRIS yang tersedia untuk pelanggan saat checkout.
         </p>
+      </div>
+
+      <div className="rounded-xl border border-border p-4">
+        <div className="mb-1 flex items-center gap-1.5">
+          <Percent className="h-4 w-4" />
+          <h3 className="text-sm font-semibold">Biaya Layanan</h3>
+        </div>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Persentase dari subtotal, dikenakan untuk SEMUA metode pembayaran (termasuk COD). Kosongkan / isi 0
+          untuk menonaktifkan.
+        </p>
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Field label="Persen Biaya Layanan (%)">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.1"
+                value={serviceFeePercent}
+                onChange={(e) => setServiceFeePercent(e.target.value)}
+                placeholder="Contoh: 2"
+                className="input"
+              />
+            </Field>
+          </div>
+          <button
+            onClick={saveServiceFee}
+            disabled={saving}
+            className="flex h-10 items-center justify-center gap-1.5 rounded-lg bg-foreground px-4 text-sm font-medium text-background disabled:opacity-50"
+          >
+            <Check className="h-4 w-4" />
+            {saving ? "Menyimpan..." : "Simpan"}
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-1 rounded-xl border border-border bg-secondary/40 p-1">
