@@ -6,6 +6,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getSignedPaymentProofUrl } from "@/lib/storage";
 import { formatRupiah, formatDate, ORDER_STATUS_LABEL } from "@/lib/utils";
 import type { OrderStatus } from "@/types/database";
 
@@ -35,6 +36,14 @@ export default function AdminOrderDetailPage() {
       .select("*, order_items(*), payments(*, payment_proofs(*))")
       .eq("id", params.id)
       .maybeSingle();
+
+    // BUG FIX: bucket payment-proof privat, jadi image_url yang tersimpan
+    // (public URL) tidak akan pernah bisa diakses langsung - lihat lib/storage.ts
+    const proof = (data as any)?.payments?.[0]?.payment_proofs?.[0];
+    if (proof?.image_url) {
+      proof.signed_url = await getSignedPaymentProofUrl(supabase, proof.image_url);
+    }
+
     setOrder(data);
     setStatus(data?.status ?? "");
     setTracking(data?.tracking_number ?? "");
@@ -136,9 +145,13 @@ export default function AdminOrderDetailPage() {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">Status: {payment.status}</p>
           {payment.payment_proofs?.length > 0 && (
-            <div className="relative mt-2 h-40 w-40 overflow-hidden rounded-lg border border-border">
-              <Image src={payment.payment_proofs[0].image_url} alt="Bukti bayar" fill className="object-cover" />
-            </div>
+            payment.payment_proofs[0].signed_url ? (
+              <div className="relative mt-2 h-40 w-40 overflow-hidden rounded-lg border border-border">
+                <Image src={payment.payment_proofs[0].signed_url} alt="Bukti bayar" fill className="object-cover" />
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-destructive">Gagal memuat bukti bayar, coba muat ulang halaman.</p>
+            )
           )}
         </div>
       )}

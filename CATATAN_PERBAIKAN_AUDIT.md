@@ -39,3 +39,19 @@ git push
 ```
 
 Tidak ada perubahan skema database yang diperlukan untuk ketiga perbaikan ini — semuanya di level API/komponen.
+
+---
+
+## Update 14 Juli 2026 — Bug bukti bayar tidak tampil di Admin Panel (SUDAH DIPERBAIKI)
+
+**Gejala:** gambar bukti bayar di `/admin/pembayaran` dan `/admin/order/[id]` selalu muncul broken image, sudah reload berkali-kali tetap sama.
+
+**Penyebab:** bucket storage `payment-proof` sengaja dibuat **private** (`public: false` di migration 0003) supaya hanya admin yang bisa baca. Tapi saat upload, kode memakai `getPublicUrl()` untuk membuat URL yang disimpan ke DB — URL jenis ini cuma bisa diakses kalau bucket-nya public. Karena bucket-nya private, URL itu **tidak akan pernah bisa dimuat**, di device manapun, semenjak awal.
+
+**Perbaikan:**
+- File baru `src/lib/storage.ts` — helper `getSignedPaymentProofUrl()` yang mengonversi URL "public" yang tersimpan menjadi *signed URL* sementara (berlaku 1 jam), dibuat khusus untuk sesi admin yang sedang login (lewat RLS policy `admin read payment proof` yang sudah ada).
+- `src/app/admin/pembayaran/page.tsx` dan `src/app/admin/order/[id]/page.tsx` — sekarang menampilkan signed URL, bukan public URL yang tersimpan.
+- `next.config.mjs` — pola `remotePatterns` untuk gambar Supabase diperluas dari `/storage/v1/object/public/**` menjadi `/storage/v1/object/**` supaya signed URL (`/object/sign/...`) juga diizinkan Next/Image.
+
+Semua bukti bayar yang **sudah pernah diupload** (termasuk yang lama, sebelum fix ini) akan otomatis bisa tampil setelah deploy — karena path file di storage tidak berubah, cuma cara generate URL-nya yang diperbaiki. Tidak perlu upload ulang.
+

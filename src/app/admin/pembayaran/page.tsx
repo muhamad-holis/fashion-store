@@ -6,6 +6,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { Check, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getSignedPaymentProofUrl } from "@/lib/storage";
 import { formatRupiah, formatDate } from "@/lib/utils";
 
 export default function AdminPaymentPage() {
@@ -20,7 +21,22 @@ export default function AdminPaymentPage() {
       .select("*, payment_proofs(*), orders(id, order_number, guest_name, guest_phone, status)")
       .eq("status", "pending")
       .order("created_at", { ascending: false });
-    setPayments(data ?? []);
+
+    const list = data ?? [];
+
+    // BUG FIX: bucket payment-proof privat, jadi image_url yang tersimpan
+    // (public URL) tidak akan pernah bisa diakses langsung - selalu gagal
+    // dimuat. Perlu dikonversi ke signed URL dulu (lihat lib/storage.ts).
+    await Promise.all(
+      list.map(async (p: any) => {
+        const proof = p.payment_proofs?.[0];
+        if (proof?.image_url) {
+          proof.signed_url = await getSignedPaymentProofUrl(supabase, proof.image_url);
+        }
+      })
+    );
+
+    setPayments(list);
     setLoading(false);
   }
 
@@ -86,9 +102,13 @@ export default function AdminPaymentPage() {
               </p>
 
               {p.payment_proofs?.length > 0 ? (
-                <div className="relative mt-2 h-48 w-full overflow-hidden rounded-lg border border-border">
-                  <Image src={p.payment_proofs[0].image_url} alt="Bukti bayar" fill className="object-contain" />
-                </div>
+                p.payment_proofs[0].signed_url ? (
+                  <div className="relative mt-2 h-48 w-full overflow-hidden rounded-lg border border-border">
+                    <Image src={p.payment_proofs[0].signed_url} alt="Bukti bayar" fill className="object-contain" />
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-destructive">Gagal memuat bukti bayar, coba muat ulang halaman.</p>
+                )
               ) : (
                 <p className="mt-2 text-xs text-muted-foreground">Belum ada bukti bayar diupload.</p>
               )}
