@@ -55,3 +55,16 @@ Tidak ada perubahan skema database yang diperlukan untuk ketiga perbaikan ini �
 
 Semua bukti bayar yang **sudah pernah diupload** (termasuk yang lama, sebelum fix ini) akan otomatis bisa tampil setelah deploy — karena path file di storage tidak berubah, cuma cara generate URL-nya yang diperbaiki. Tidak perlu upload ulang.
 
+---
+
+## Update 14 Juli 2026 — Fitur zoom bukti bayar di Admin Panel
+
+Ditambahkan komponen `src/components/admin/payment-proof-lightbox.tsx` yang membungkus thumbnail bukti bayar di `/admin/pembayaran` dan `/admin/order/[id]`. Klik/tap gambarnya sekarang membuka tampilan penuh layar dengan:
+- Tombol perbesar (+), perkecil (-), dan reset zoom
+- Cubit dua jari (pinch-to-zoom) di layar sentuh
+- Tap dua kali (double tap) untuk toggle zoom 2x
+- Geser (drag) gambar saat sedang di-zoom
+- Tombol X atau tap tombol close untuk menutup
+
+Tidak ada perubahan database atau dependency baru — murni komponen React di sisi client.
+

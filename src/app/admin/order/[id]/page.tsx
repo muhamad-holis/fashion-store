@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getSignedPaymentProofUrl } from "@/lib/storage";
+import { PaymentProofLightbox } from "@/components/admin/payment-proof-lightbox";
 import { formatRupiah, formatDate, ORDER_STATUS_LABEL } from "@/lib/utils";
 import type { OrderStatus } from "@/types/database";
 
@@ -146,9 +147,12 @@ export default function AdminOrderDetailPage() {
           <p className="mt-1 text-xs text-muted-foreground">Status: {payment.status}</p>
           {payment.payment_proofs?.length > 0 && (
             payment.payment_proofs[0].signed_url ? (
-              <div className="relative mt-2 h-40 w-40 overflow-hidden rounded-lg border border-border">
+              <PaymentProofLightbox
+                src={payment.payment_proofs[0].signed_url}
+                wrapperClassName="relative mt-2 h-40 w-40 overflow-hidden rounded-lg border border-border"
+              >
                 <Image src={payment.payment_proofs[0].signed_url} alt="Bukti bayar" fill className="object-cover" />
-              </div>
+              </PaymentProofLightbox>
             ) : (
               <p className="mt-2 text-xs text-destructive">Gagal memuat bukti bayar, coba muat ulang halaman.</p>
             )
