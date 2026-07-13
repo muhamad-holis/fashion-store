@@ -123,7 +123,13 @@ export default function AdminOrderDetailPage() {
             </div>
           ))}
           <div className="flex justify-between border-t border-border pt-1.5 text-muted-foreground">
-            <span>Ongkir ({order.courier_code?.toUpperCase()} {order.courier_service})</span>
+            <span>
+              Ongkir (
+              {order.courier_code === "cod"
+                ? "COD"
+                : `${order.courier_code?.toUpperCase()} ${order.courier_service}`}
+              )
+            </span>
             <span>{formatRupiah(order.shipping_cost)}</span>
           </div>
           {order.service_fee > 0 && (
