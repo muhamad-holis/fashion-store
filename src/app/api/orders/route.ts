@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { getShippingOptions } from "@/lib/shipping";
+import { isAreaAllowedForCod } from "@/lib/cod";
 
 interface CheckoutBody {
   idempotency_key: string;
@@ -22,7 +23,7 @@ interface CheckoutBody {
   courier_service: string;
   shipping_cost: number;
   shipping_eta: string;
-  payment_method: "bank_transfer" | "ewallet" | "qris";
+  payment_method: "bank_transfer" | "ewallet" | "qris" | "cod";
   payment_channel_detail?: string;
   buyer_note?: string;
   coupon_code?: string;
@@ -80,20 +81,57 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Kota tujuan wajib diisi" }, { status: 400 });
   }
 
-  const shippingOptions = await getShippingOptions({
-    destinationCity: body.address.city,
-    totalWeightGrams,
-  });
+  // CATATAN COD (validasi server - lihat lib/cod.ts): metode COD tidak
+  // dikirim lewat kurir nasional, jadi TIDAK pakai getShippingOptions()
+  // seperti metode lain. Sebagai gantinya ongkir adalah flat fee yang
+  // diatur admin (settings.cod_shipping_fee), dan area alamat WAJIB
+  // dicek ulang di sini - tidak boleh cuma percaya pengecekan di client,
+  // sama seperti kasus manipulasi shipping_cost sebelumnya.
+  let verifiedShipping: { courier_code: string; service: string; cost: number; eta: string };
 
-  const verifiedShipping = shippingOptions.find(
-    (opt) => opt.courier_code === body.courier_code
-  );
+  if (body.payment_method === "cod") {
+    const { data: settings, error: settingsError } = await db
+      .from("settings")
+      .select("cod_enabled, cod_areas, cod_shipping_fee")
+      .eq("id", 1)
+      .single();
 
-  if (!verifiedShipping) {
-    return NextResponse.json(
-      { error: "Opsi pengiriman tidak valid atau sudah kedaluwarsa, silakan pilih ulang kurir." },
-      { status: 400 }
+    if (settingsError || !settings) {
+      return NextResponse.json({ error: "Gagal memuat pengaturan COD" }, { status: 500 });
+    }
+    if (!settings.cod_enabled) {
+      return NextResponse.json({ error: "COD sedang tidak tersedia" }, { status: 400 });
+    }
+    if (!isAreaAllowedForCod(body.address.district, body.address.subdistrict, settings.cod_areas as any)) {
+      return NextResponse.json(
+        { error: "COD tidak tersedia untuk alamat ini. Silakan pilih metode pembayaran lain." },
+        { status: 400 }
+      );
+    }
+
+    verifiedShipping = {
+      courier_code: "cod",
+      service: "COD",
+      cost: settings.cod_shipping_fee ?? 0,
+      eta: "Diantar langsung",
+    };
+  } else {
+    const shippingOptions = await getShippingOptions({
+      destinationCity: body.address.city,
+      totalWeightGrams,
+    });
+
+    const matchedShipping = shippingOptions.find(
+      (opt) => opt.courier_code === body.courier_code
     );
+
+    if (!matchedShipping) {
+      return NextResponse.json(
+        { error: "Opsi pengiriman tidak valid atau sudah kedaluwarsa, silakan pilih ulang kurir." },
+        { status: 400 }
+      );
+    }
+    verifiedShipping = matchedShipping;
   }
 
   // Seluruh proses checkout (validasi stok, kurangi stok, buat order,
@@ -123,9 +161,11 @@ export async function POST(request: NextRequest) {
   });
 
   if (error) {
-    // P0002 = stok tidak mencukupi, P0001 = keranjang kosong/tidak valid
+    // P0001 = keranjang kosong/tidak valid, P0002 = stok tidak mencukupi,
+    // P0003 = total pesanan melebihi batas maksimal COD
     // (dilempar manual di dalam fungsi SQL create_order_atomic)
-    const status = error.code === "P0002" || error.code === "P0001" ? 400 : 500;
+    const knownErrors = ["P0001", "P0002", "P0003"];
+    const status = knownErrors.includes(error.code) ? 400 : 500;
     return NextResponse.json({ error: error.message }, { status });
   }
 

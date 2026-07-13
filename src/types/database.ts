@@ -14,7 +14,7 @@ export type OrderStatus =
   | "completed"
   | "cancelled";
 
-export type PaymentMethod = "bank_transfer" | "ewallet" | "qris";
+export type PaymentMethod = "bank_transfer" | "ewallet" | "qris" | "cod";
 export type PaymentStatus = "pending" | "approved" | "rejected";
 export type UserRole = "customer" | "admin" | "super_admin";
 export type NotificationChannel = "toast" | "email";
@@ -367,6 +367,10 @@ export type StoreSettings = {
   privacy_policy: string | null;
   terms_conditions: string | null;
   about_us: string | null;
+  cod_enabled: boolean;
+  cod_areas: { district: string; subdistrict: string }[];
+  cod_max_amount: number | null;
+  cod_shipping_fee: number;
   updated_at: string;
 }
 

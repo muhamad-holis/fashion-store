@@ -165,8 +165,29 @@ function MetodePembayaranContent() {
               </motion.div>
             )}
 
-            {/* SECTION 1: TRANSFER BANK */}
-            <motion.section variants={fadeUp} custom={1} initial="hidden" animate="show" className="space-y-3">
+            {/* SECTION KHUSUS COD - order COD tidak butuh instruksi
+                transfer/QRIS ataupun upload bukti pembayaran sama sekali. */}
+            {payment?.method === "cod" ? (
+              <motion.section
+                variants={fadeUp}
+                custom={1}
+                initial="hidden"
+                animate="show"
+                className="rounded-[20px] border border-[#262626] bg-[#151515] p-5"
+              >
+                <h2 className="text-sm font-semibold">Pembayaran COD (Bayar di Tempat)</h2>
+                <p className="mt-1 text-xs text-white/45">
+                  Pesanan ini dibayar cash langsung saat barang tiba, tidak perlu transfer.
+                </p>
+                <div className="mt-4 flex items-center justify-between rounded-xl bg-white/5 px-3 py-2.5 text-sm">
+                  <span className="text-white/50">Siapkan Uang Cash</span>
+                  <span className="font-semibold">{formatRupiah(payment.amount)}</span>
+                </div>
+              </motion.section>
+            ) : (
+              <>
+                {/* SECTION 1: TRANSFER BANK */}
+                <motion.section variants={fadeUp} custom={1} initial="hidden" animate="show" className="space-y-3">
               <div className="flex items-center gap-2 px-1">
                 <Landmark className="h-4 w-4 text-white/50" />
                 <h2 className="text-xs font-semibold tracking-wide text-white/50">TRANSFER BANK</h2>
@@ -387,6 +408,8 @@ function MetodePembayaranContent() {
             <motion.div variants={fadeUp} custom={5} initial="hidden" animate="show">
               <VerificationStatus current={verificationStep} rejectionReason={payment?.rejection_reason} />
             </motion.div>
+              </>
+            )}
 
             {/* SECTION 6: PANDUAN PEMBAYARAN */}
             <motion.div variants={fadeUp} custom={6} initial="hidden" animate="show">

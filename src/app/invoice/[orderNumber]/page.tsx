@@ -149,7 +149,7 @@ function InvoiceContent() {
         </div>
       </div>
 
-      {order.status === "unpaid" && payment && (
+      {order.status === "unpaid" && payment && payment.method !== "cod" && (
         <div className="rounded-xl border border-border p-4">
           <h2 className="mb-3 text-sm font-semibold">Instruksi Pembayaran</h2>
 
@@ -197,6 +197,20 @@ function InvoiceContent() {
               Bukti pembayaran sudah diupload, menunggu verifikasi admin.
             </p>
           )}
+        </div>
+      )}
+
+      {payment?.method === "cod" && (
+        <div className="rounded-xl border border-border p-4">
+          <h2 className="mb-3 text-sm font-semibold">Pembayaran COD (Bayar di Tempat)</h2>
+          <div className="mb-3 flex items-center justify-between rounded-lg bg-secondary px-3 py-2.5 text-sm">
+            <span>Siapkan Uang Cash</span>
+            <span className="font-semibold">{formatRupiah(payment.amount)}</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Pesanan langsung diproses tanpa perlu upload bukti transfer. Siapkan uang pas sejumlah di atas
+            saat kurir/toko mengantar barang.
+          </p>
         </div>
       )}
 

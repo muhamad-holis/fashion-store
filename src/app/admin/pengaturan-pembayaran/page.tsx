@@ -7,6 +7,7 @@ import {
   Landmark,
   Wallet,
   QrCode,
+  Truck,
   Plus,
   Pencil,
   Trash2,
@@ -32,11 +33,16 @@ type EwalletAccount = {
   logo_url?: string;
   is_active?: boolean;
 };
+type CodArea = {
+  district: string;
+  subdistrict: string;
+};
 
 const TABS = [
   { key: "bank", label: "Transfer Bank", icon: Landmark },
   { key: "ewallet", label: "E-Wallet", icon: Wallet },
   { key: "qris", label: "QRIS", icon: QrCode },
+  { key: "cod", label: "COD", icon: Truck },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -51,6 +57,14 @@ export default function AdminPaymentSettingsPage() {
   const [ewallets, setEwallets] = useState<EwalletAccount[]>([]);
   const [qrisUrl, setQrisUrl] = useState<string>("");
   const [uploadingQris, setUploadingQris] = useState(false);
+
+  // Pengaturan COD (Bayar di Tempat terbatas wilayah) - lihat
+  // migrations/0015_cod_area_terbatas.sql
+  const [codEnabled, setCodEnabled] = useState(false);
+  const [codAreas, setCodAreas] = useState<CodArea[]>([]);
+  const [codMaxAmount, setCodMaxAmount] = useState<string>("");
+  const [codShippingFee, setCodShippingFee] = useState<string>("0");
+  const [codAreaDraft, setCodAreaDraft] = useState<CodArea>({ district: "", subdistrict: "" });
 
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draft, setDraft] = useState<BankAccount & EwalletAccount>({
@@ -70,6 +84,10 @@ export default function AdminPaymentSettingsPage() {
       setBanks((data.bank_accounts ?? []) as BankAccount[]);
       setEwallets((data.ewallet_accounts ?? []) as EwalletAccount[]);
       setQrisUrl(data.qris_image_url ?? "");
+      setCodEnabled(data.cod_enabled ?? false);
+      setCodAreas((data.cod_areas ?? []) as CodArea[]);
+      setCodMaxAmount(data.cod_max_amount != null ? String(data.cod_max_amount) : "");
+      setCodShippingFee(String(data.cod_shipping_fee ?? 0));
     }
     setLoading(false);
   }
@@ -79,7 +97,15 @@ export default function AdminPaymentSettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function persist(next: { bank_accounts?: BankAccount[]; ewallet_accounts?: EwalletAccount[]; qris_image_url?: string }) {
+  async function persist(next: {
+    bank_accounts?: BankAccount[];
+    ewallet_accounts?: EwalletAccount[];
+    qris_image_url?: string;
+    cod_enabled?: boolean;
+    cod_areas?: CodArea[];
+    cod_max_amount?: number | null;
+    cod_shipping_fee?: number;
+  }) {
     setSaving(true);
     const { error } = await supabase.from("settings").update(next).eq("id", 1);
     setSaving(false);
@@ -88,6 +114,64 @@ export default function AdminPaymentSettingsPage() {
       return false;
     }
     return true;
+  }
+
+  async function toggleCodEnabled() {
+    const next = !codEnabled;
+    const ok = await persist({ cod_enabled: next });
+    if (ok) {
+      setCodEnabled(next);
+      toast.success(next ? "COD diaktifkan" : "COD dinonaktifkan");
+    }
+  }
+
+  function addCodArea() {
+    if (!codAreaDraft.district.trim() || !codAreaDraft.subdistrict.trim()) {
+      toast.error("Kecamatan dan kelurahan wajib diisi");
+      return;
+    }
+    const area: CodArea = {
+      district: codAreaDraft.district.trim(),
+      subdistrict: codAreaDraft.subdistrict.trim(),
+    };
+    const duplicate = codAreas.some(
+      (a) =>
+        a.district.toLowerCase() === area.district.toLowerCase() &&
+        a.subdistrict.toLowerCase() === area.subdistrict.toLowerCase()
+    );
+    if (duplicate) {
+      toast.error("Area ini sudah ada di daftar");
+      return;
+    }
+    saveCodAreas([...codAreas, area]);
+    setCodAreaDraft({ district: "", subdistrict: "" });
+  }
+
+  async function removeCodArea(idx: number) {
+    saveCodAreas(codAreas.filter((_, i) => i !== idx));
+  }
+
+  async function saveCodAreas(next: CodArea[]) {
+    const ok = await persist({ cod_areas: next });
+    if (ok) {
+      setCodAreas(next);
+      toast.success("Daftar area COD diperbarui");
+    }
+  }
+
+  async function saveCodLimits() {
+    const maxAmount = codMaxAmount.trim() === "" ? null : Number(codMaxAmount);
+    const shippingFee = Number(codShippingFee) || 0;
+    if (maxAmount !== null && (isNaN(maxAmount) || maxAmount < 0)) {
+      toast.error("Batas maksimal tidak valid");
+      return;
+    }
+    if (isNaN(shippingFee) || shippingFee < 0) {
+      toast.error("Ongkir COD tidak valid");
+      return;
+    }
+    const ok = await persist({ cod_max_amount: maxAmount, cod_shipping_fee: shippingFee });
+    if (ok) toast.success("Pengaturan batas COD disimpan");
   }
 
   function openAdd() {
@@ -383,6 +467,119 @@ export default function AdminPaymentSettingsPage() {
                 onChange={(e) => e.target.files?.[0] && uploadQris(e.target.files[0])}
               />
             </label>
+          </div>
+        </div>
+      )}
+
+      {tab === "cod" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-xl border border-border p-4">
+            <div>
+              <p className="text-sm font-medium">Aktifkan COD</p>
+              <p className="text-xs text-muted-foreground">
+                COD hanya muncul di checkout kalau alamat buyer cocok salah satu area di bawah.
+              </p>
+            </div>
+            <button
+              onClick={toggleCodEnabled}
+              disabled={saving}
+              className={cn(
+                "relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50",
+                codEnabled ? "bg-emerald-500" : "bg-secondary"
+              )}
+              aria-label="Aktifkan/nonaktifkan COD"
+            >
+              <span
+                className={cn(
+                  "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform",
+                  codEnabled ? "translate-x-5" : "translate-x-0.5"
+                )}
+              />
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-border p-4">
+            <h3 className="mb-1 text-sm font-semibold">Area yang Diizinkan COD</h3>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Kecamatan &amp; kelurahan yang boleh pakai COD (harus persis dengan pilihan buyer saat checkout).
+            </p>
+
+            {codAreas.length === 0 ? (
+              <p className="mb-3 text-xs text-muted-foreground">Belum ada area yang diizinkan.</p>
+            ) : (
+              <div className="mb-3 space-y-1.5">
+                {codAreas.map((area, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                  >
+                    <span>
+                      {area.subdistrict}, {area.district}
+                    </span>
+                    <button onClick={() => removeCodArea(idx)} className="text-destructive">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                value={codAreaDraft.district}
+                onChange={(e) => setCodAreaDraft((d) => ({ ...d, district: e.target.value }))}
+                placeholder="Kecamatan"
+                className="input"
+              />
+              <input
+                value={codAreaDraft.subdistrict}
+                onChange={(e) => setCodAreaDraft((d) => ({ ...d, subdistrict: e.target.value }))}
+                placeholder="Kelurahan"
+                className="input"
+              />
+            </div>
+            <button
+              onClick={addCodArea}
+              disabled={saving}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary disabled:opacity-50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Tambah Area
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-border p-4">
+            <h3 className="mb-3 text-sm font-semibold">Batas &amp; Ongkir COD</h3>
+            <div className="space-y-3">
+              <Field label="Batas Maksimal Nominal Order (Rp) - kosongkan jika tidak ada batas">
+                <input
+                  type="number"
+                  min={0}
+                  value={codMaxAmount}
+                  onChange={(e) => setCodMaxAmount(e.target.value)}
+                  placeholder="Contoh: 300000"
+                  className="input"
+                />
+              </Field>
+              <Field label="Ongkir Flat COD (Rp)">
+                <input
+                  type="number"
+                  min={0}
+                  value={codShippingFee}
+                  onChange={(e) => setCodShippingFee(e.target.value)}
+                  placeholder="Contoh: 5000, atau 0 untuk gratis"
+                  className="input"
+                />
+              </Field>
+            </div>
+            <button
+              onClick={saveCodLimits}
+              disabled={saving}
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-foreground py-2.5 text-sm font-medium text-background disabled:opacity-50"
+            >
+              <Check className="h-4 w-4" />
+              {saving ? "Menyimpan..." : "Simpan"}
+            </button>
           </div>
         </div>
       )}

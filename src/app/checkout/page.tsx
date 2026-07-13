@@ -9,10 +9,11 @@ import { formatRupiah } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { createClient } from "@/lib/supabase/client";
 import { PROVINCES, CITIES_BY_PROVINCE } from "@/lib/regions";
+import { isAreaAllowedForCod } from "@/lib/cod";
 import type { Address, CartItem, Coupon, StoreSettings } from "@/types/database";
 import type { ShippingOption } from "@/lib/shipping";
 
-type PaymentMethod = "bank_transfer" | "ewallet" | "qris";
+type PaymentMethod = "bank_transfer" | "ewallet" | "qris" | "cod";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -217,6 +218,31 @@ export default function CheckoutPage() {
     setCouponInput("");
   }
 
+  // COD pakai ongkir flat fee yang diatur admin (settings.cod_shipping_fee),
+  // BUKAN hasil "Cek Ongkir" ke kurir nasional - itu dihitung untuk
+  // pengiriman antar kota dan tidak relevan buat pengiriman lokal COD.
+  // Begitu COD dipilih, ongkir langsung diisi otomatis.
+  useEffect(() => {
+    if (paymentMethod === "cod" && settings) {
+      setShippingOptions([]);
+      setSelectedShipping({
+        courier_code: "cod",
+        courier_name: "COD - Antar Langsung",
+        service: "COD",
+        eta: "Diantar langsung",
+        cost: settings.cod_shipping_fee ?? 0,
+      });
+    } else if (paymentMethod !== "cod" && selectedShipping?.courier_code === "cod") {
+      setSelectedShipping(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentMethod, settings]);
+
+  const codMaxExceeded =
+    paymentMethod === "cod" &&
+    settings?.cod_max_amount != null &&
+    grandTotal > settings.cod_max_amount;
+
   async function fetchShipping() {
     if (!form.city) {
       toast.error("Pilih kota tujuan terlebih dahulu");
@@ -238,12 +264,34 @@ export default function CheckoutPage() {
     }
   }
 
+  // COD hanya boleh dipilih kalau admin sudah mengaktifkannya DAN alamat
+  // buyer (kecamatan + kelurahan) masuk daftar area yang diizinkan. Ini
+  // HANYA untuk UX (menampilkan/menyembunyikan opsi) - keputusan final
+  // tetap divalidasi ulang di server (lihat api/orders/route.ts).
+  const codAllowed = useMemo(() => {
+    if (!settings?.cod_enabled) return false;
+    return isAreaAllowedForCod(form.district, form.subdistrict, settings.cod_areas);
+  }, [settings, form.district, form.subdistrict]);
+
+  // Kalau alamat berubah dan area COD sudah tidak cocok lagi (atau COD
+  // dinonaktifkan admin) sementara metode yang sedang dipilih adalah COD,
+  // reset supaya buyer tidak "terjebak" dengan pilihan yang sudah tidak
+  // valid. Ongkir juga direset karena ongkir COD adalah flat fee terpisah.
+  useEffect(() => {
+    if (paymentMethod === "cod" && !codAllowed) {
+      setPaymentMethod("qris");
+      setPaymentChannel("");
+      setSelectedShipping(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codAllowed]);
+
   // Semua channel pembayaran, dikelompokkan per metode - dipakai untuk
   // tampilan bottom sheet ala TikTok Shop/Shopee (satu daftar, langsung
   // pilih metode + channel sekaligus).
   const paymentGroups = useMemo(() => {
     if (!settings) return [];
-    return [
+    const groups = [
       {
         method: "qris" as PaymentMethod,
         label: "QRIS",
@@ -262,7 +310,15 @@ export default function CheckoutPage() {
           settings.ewallet_accounts?.map((e) => `${e.provider} - ${e.number} a.n ${e.name}`) ?? [],
       },
     ];
-  }, [settings]);
+    if (codAllowed) {
+      groups.push({
+        method: "cod" as PaymentMethod,
+        label: "Bayar di Tempat (COD)",
+        channels: ["Bayar Cash Saat Barang Tiba"],
+      });
+    }
+    return groups;
+  }, [settings, codAllowed]);
 
   async function submitOrder() {
     // Cegah klik ganda: kalau request sebelumnya masih berjalan, abaikan
@@ -279,6 +335,12 @@ export default function CheckoutPage() {
     }
     if (!paymentChannel) {
       toast.error("Pilih channel pembayaran");
+      return;
+    }
+    if (codMaxExceeded) {
+      toast.error(
+        `Total pesanan melebihi batas maksimal COD (${formatRupiah(settings?.cod_max_amount ?? 0)}). Pilih metode pembayaran lain.`
+      );
       return;
     }
 
@@ -413,15 +475,25 @@ export default function CheckoutPage() {
       <section className="rounded-xl border border-border p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Jasa Pengiriman</h2>
-          <button
-            onClick={fetchShipping}
-            disabled={loadingShipping}
-            className="rounded-lg border border-border px-3 py-1.5 text-xs disabled:opacity-50"
-          >
-            {loadingShipping ? "Menghitung..." : "Cek Ongkir"}
-          </button>
+          {paymentMethod !== "cod" && (
+            <button
+              onClick={fetchShipping}
+              disabled={loadingShipping}
+              className="rounded-lg border border-border px-3 py-1.5 text-xs disabled:opacity-50"
+            >
+              {loadingShipping ? "Menghitung..." : "Cek Ongkir"}
+            </button>
+          )}
         </div>
-        {shippingOptions.length === 0 ? (
+        {paymentMethod === "cod" ? (
+          <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 text-sm">
+            <span>
+              <span className="font-medium">COD - Antar Langsung</span>{" "}
+              <span className="text-muted-foreground">· Diantar langsung</span>
+            </span>
+            <span className="font-semibold">{formatRupiah(settings?.cod_shipping_fee ?? 0)}</span>
+          </div>
+        ) : shippingOptions.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             Pilih kota tujuan lalu klik "Cek Ongkir" untuk melihat pilihan kurir.
           </p>
@@ -504,9 +576,17 @@ export default function CheckoutPage() {
               <PaymentIcon method={paymentMethod} />
               <span className="truncate">
                 <span className="font-medium">
-                  {paymentMethod === "qris" ? "QRIS" : paymentMethod === "bank_transfer" ? "Transfer Bank" : "E-Wallet"}
+                  {paymentMethod === "qris"
+                    ? "QRIS"
+                    : paymentMethod === "bank_transfer"
+                      ? "Transfer Bank"
+                      : paymentMethod === "cod"
+                        ? "Bayar di Tempat (COD)"
+                        : "E-Wallet"}
                 </span>
-                {paymentMethod !== "qris" && <span className="text-muted-foreground"> · {paymentChannel}</span>}
+                {paymentMethod !== "qris" && paymentMethod !== "cod" && (
+                  <span className="text-muted-foreground"> · {paymentChannel}</span>
+                )}
               </span>
             </span>
           ) : (
@@ -707,6 +787,12 @@ export default function CheckoutPage() {
           <span>Grand Total</span>
           <span>{formatRupiah(grandTotal)}</span>
         </div>
+        {codMaxExceeded && (
+          <p className="mt-2 text-xs text-destructive">
+            Total pesanan melebihi batas maksimal COD ({formatRupiah(settings?.cod_max_amount ?? 0)}). Pilih
+            metode pembayaran lain atau kurangi jumlah barang.
+          </p>
+        )}
       </section>
 
       <div className="fixed inset-x-0 bottom-16 z-30 border-t border-border bg-background/95 p-4 backdrop-blur md:bottom-0">
@@ -717,7 +803,7 @@ export default function CheckoutPage() {
           </div>
           <button
             onClick={submitOrder}
-            disabled={submitting}
+            disabled={submitting || codMaxExceeded}
             className="rounded-lg bg-foreground px-6 py-3 text-sm font-medium text-background disabled:opacity-50"
           >
             {submitting ? "Memproses..." : "Buat Pesanan"}
@@ -735,6 +821,9 @@ function PaymentIcon({ method }: { method: PaymentMethod }) {
   }
   if (method === "bank_transfer") {
     return <span className={`${base} bg-emerald-500/15 text-emerald-500`}>🏦</span>;
+  }
+  if (method === "cod") {
+    return <span className={`${base} bg-amber-500/15 text-amber-500`}>💵</span>;
   }
   return <span className={`${base} bg-purple-500/15 text-purple-500`}>💳</span>;
 }
