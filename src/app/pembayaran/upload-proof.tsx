@@ -10,10 +10,14 @@ const MAX_SIZE = 10 * 1024 * 1024;
 
 export function UploadProof({
   paymentId,
+  phone,
   disabled,
   onUploaded,
 }: {
   paymentId?: string;
+  // Dikirim sebagai bukti kepemilikan order untuk order guest (lihat
+  // CATATAN FIX di api/orders/payment-proof/route.ts).
+  phone?: string;
   disabled?: boolean;
   onUploaded?: () => void;
 }) {
@@ -53,6 +57,7 @@ export function UploadProof({
     const formData = new FormData();
     formData.append("file", f);
     formData.append("payment_id", paymentId);
+    if (phone) formData.append("phone", phone);
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/orders/payment-proof");

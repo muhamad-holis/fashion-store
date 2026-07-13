@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { ProductCard } from "@/components/product/product-card";
 import { ProductFilters } from "@/components/product/product-filters";
@@ -98,13 +99,21 @@ export default async function ProductListPage({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[240px_1fr]">
+        {/* CATATAN FIX (Next.js 15 build error): ProductFilters memakai
+            useSearchParams() di dalamnya, yang WAJIB dibungkus <Suspense>
+            supaya build/prerender tidak gagal dengan error
+            "useSearchParams() should be wrapped in a suspense boundary". */}
         <aside className="hidden md:block">
-          <ProductFilters {...filterData} currentParams={params} />
+          <Suspense fallback={<div className="h-64 w-full animate-pulse rounded-xl bg-secondary" />}>
+            <ProductFilters {...filterData} currentParams={params} />
+          </Suspense>
         </aside>
 
         <div>
           <div className="mb-3 flex items-center justify-between md:hidden">
-            <ProductFilters {...filterData} currentParams={params} mobile />
+            <Suspense fallback={<div className="h-9 w-full animate-pulse rounded-xl bg-secondary" />}>
+              <ProductFilters {...filterData} currentParams={params} mobile />
+            </Suspense>
           </div>
 
           {products.length === 0 ? (

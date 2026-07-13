@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -9,7 +9,27 @@ import { formatRupiah, formatDate, ORDER_STATUS_LABEL } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import type { Order, StoreSettings } from "@/types/database";
 
+// CATATAN FIX (Next.js 15 build error): useSearchParams() mewajibkan
+// boundary <Suspense> di sekelilingnya, kalau tidak build akan gagal
+// dengan error "useSearchParams() should be wrapped in a suspense
+// boundary" - persis pola yang sudah diperbaiki di pembayaran/page.tsx.
 export default function InvoicePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="container space-y-3 py-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="skeleton h-24 w-full rounded-xl" />
+          ))}
+        </div>
+      }
+    >
+      <InvoiceContent />
+    </Suspense>
+  );
+}
+
+function InvoiceContent() {
   const params = useParams<{ orderNumber: string }>();
   const searchParams = useSearchParams();
   const phone = searchParams.get("phone") ?? "";
@@ -49,6 +69,9 @@ export default function InvoicePage() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("payment_id", order.payments[0].id);
+    // Dikirim sebagai bukti kepemilikan order untuk order guest (lihat
+    // CATATAN FIX di api/orders/payment-proof/route.ts).
+    if (phone) formData.append("phone", phone);
 
     try {
       const res = await fetch("/api/orders/payment-proof", { method: "POST", body: formData });

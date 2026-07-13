@@ -375,7 +375,7 @@ function MetodePembayaranContent() {
 
             {/* SECTION 4: UPLOAD BUKTI PEMBAYARAN */}
             <motion.div variants={fadeUp} custom={4} initial="hidden" animate="show">
-              <UploadProof paymentId={payment?.id} disabled={!payment} onUploaded={load} />
+              <UploadProof paymentId={payment?.id} phone={phone} disabled={!payment} onUploaded={load} />
               {!payment && (
                 <p className="mt-2 px-1 text-xs text-white/35">
                   Upload bukti pembayaran akan aktif setelah kamu menyelesaikan checkout.
