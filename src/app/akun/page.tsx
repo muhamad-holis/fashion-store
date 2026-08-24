@@ -36,6 +36,14 @@ export default async function AccountPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) {
+    return (
+      <div className="container max-w-md space-y-4 py-6">
+        <GuestCard />
+      </div>
+    );
+  }
+
   const [{ data: settings }, recommendedRes] = await Promise.all([
     supabase.from("settings").select("whatsapp, store_name").eq("id", 1).maybeSingle(),
     supabase
@@ -46,21 +54,6 @@ export default async function AccountPage() {
       .limit(6),
   ]);
   const recommended = (recommendedRes.data ?? []) as Product[];
-
-  if (!user) {
-    return (
-      <div className="container max-w-md space-y-4 py-6">
-        <GuestCard />
-        <Reveal delay={0.1}>
-          <TrackOrderCard />
-        </Reveal>
-        <Reveal delay={0.15}>
-          <MenuList whatsapp={settings?.whatsapp} excludeSignout />
-        </Reveal>
-        <RecommendSection products={recommended} />
-      </div>
-    );
-  }
 
   const [
     { data: profile },
