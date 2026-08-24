@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
 import { getShippingOptions } from "@/lib/shipping";
 import { isAreaAllowedForCod } from "@/lib/cod";
+import { sendAdminOrderNotification } from "@/lib/whatsapp";
 
 interface CheckoutBody {
   idempotency_key: string;
@@ -184,6 +185,27 @@ export async function POST(request: NextRequest) {
     .eq("id", result.payment_id)
     .single();
   if (paymentFetchError) return NextResponse.json({ error: paymentFetchError.message }, { status: 500 });
+
+  // Notifikasi WA ke admin. Sengaja TIDAK di-await sampai selesai dan
+  // dibungkus try/catch di dalam sendAdminOrderNotification sendiri, supaya
+  // lambat/gagalnya pengiriman WA tidak pernah membuat checkout gagal atau
+  // response ke pembeli jadi lambat.
+  db.from("order_items")
+    .select("quantity, product_name")
+    .eq("order_id", result.order_id)
+    .then(({ data: orderItems }) => {
+      const itemsSummary =
+        (orderItems ?? []).map((it: any) => `${it.quantity}x ${it.product_name}`).join(", ") || "-";
+
+      void sendAdminOrderNotification({
+        orderNumber: order.order_number,
+        buyerName: body.address.recipient_name,
+        buyerPhone: body.address.phone,
+        grandTotal: order.grand_total,
+        paymentMethod: body.payment_method,
+        itemsSummary,
+      });
+    });
 
   return NextResponse.json({ order, payment });
 }
